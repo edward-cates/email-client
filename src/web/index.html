@@ -390,6 +390,19 @@
             vertical-align: middle;
         }
 
+        .marketing-badge .delete-icon {
+            margin-left: 4px;
+            cursor: pointer;
+            opacity: 0.8;
+            font-weight: bold;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .marketing-badge .delete-icon:hover {
+            opacity: 1;
+        }
+
         .empty-state {
             flex: 1;
             display: flex;
@@ -1311,7 +1324,9 @@
                         <div class="email-header-row">
                             <div class="email-sender" title="${escapeHtml(sender)}">
                                 ${escapeHtml(sender)}
-                                ${hasMarketingLabel ? '<span class="marketing-badge">Marketing</span>' : ''}
+                                ${hasMarketingLabel 
+                                    ? `<span class="marketing-badge" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Remove Marketing label">×</span></span>` 
+                                    : `<span class="marketing-badge" style="cursor: pointer; opacity: 0.5; border-style: dashed;" onclick="addMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Click to add Marketing label">+ Marketing</span>`}
                             </div>
                             <div class="email-time">${escapeHtml(timeSent)}</div>
                         </div>
@@ -1477,6 +1492,8 @@
         }
 
         // Email Modal Functions
+        let currentModalEmail = null;
+
         async function openEmailModal(messageId, accountId) {
             const modal = document.getElementById('emailModal');
             const modalTitle = document.getElementById('modalTitle');
@@ -1507,6 +1524,7 @@
                 }
 
                 const email = await response.json();
+                currentModalEmail = email;
 
                 // Update modal title
                 modalTitle.textContent = email.subject || '(No subject)';
@@ -1516,12 +1534,20 @@
                 const to = email.to || '';
                 const cc = email.cc || '';
                 const date = formatDate(email.date || email.internalDate);
+                const labelNames = email.label_names || [];
+                const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
                 
                 let metaHtml = `
                     <div class="modal-meta-row"><span class="modal-meta-label">From:</span> ${escapeHtml(from)}</div>
                     ${to ? `<div class="modal-meta-row"><span class="modal-meta-label">To:</span> ${escapeHtml(to)}</div>` : ''}
                     ${cc ? `<div class="modal-meta-row"><span class="modal-meta-label">Cc:</span> ${escapeHtml(cc)}</div>` : ''}
                     <div class="modal-meta-row"><span class="modal-meta-label">Date:</span> ${escapeHtml(date)}</div>
+                    <div class="modal-meta-row">
+                        <span class="modal-meta-label">Labels:</span>
+                        ${hasMarketingLabel 
+                            ? '<span class="marketing-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabel(event)" title="Remove Marketing label">×</span></span>' 
+                            : '<span class="marketing-badge" style="cursor: pointer; margin-left: 8px; opacity: 0.5; border-style: dashed;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">+ Marketing</span>'}
+                    </div>
                 `;
                 modalMeta.innerHTML = metaHtml;
 
@@ -1569,9 +1595,248 @@
             }
         }
 
+        async function addMarketingLabel(event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            if (!currentModalEmail) {
+                return;
+            }
+
+            const messageId = currentModalEmail.id;
+            const accountId = currentModalEmail.account_id;
+            const labelNames = currentModalEmail.label_names || [];
+            const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
+
+            if (hasMarketingLabel) {
+                return; // Already has label
+            }
+
+            try {
+                const url = `/api/emails/${encodeURIComponent(messageId)}/labels?account_id=${encodeURIComponent(accountId)}`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ label_names: ['Marketing'] })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `Failed to add label: ${response.statusText}`);
+                }
+
+                // Update the current email data
+                currentModalEmail.label_names = [...labelNames, 'Marketing'];
+
+                // Refresh the modal display
+                refreshModalBadge();
+
+                // Also update the email in the list if it's visible
+                const email = allEmails.find(e => e.id === messageId);
+                if (email) {
+                    email.label_names = currentModalEmail.label_names;
+                    renderEmails();
+                }
+            } catch (error) {
+                console.error('Error adding Marketing label:', error);
+                alert('Error adding Marketing label: ' + error.message);
+            }
+        }
+
+        async function removeMarketingLabel(event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            if (!currentModalEmail) {
+                return;
+            }
+
+            const messageId = currentModalEmail.id;
+            const accountId = currentModalEmail.account_id;
+            const labelNames = currentModalEmail.label_names || [];
+            const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
+
+            if (!hasMarketingLabel) {
+                return; // Doesn't have label
+            }
+
+            try {
+                const url = `/api/emails/${encodeURIComponent(messageId)}/labels?account_id=${encodeURIComponent(accountId)}`;
+                
+                const response = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ label_names: ['Marketing'] })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `Failed to remove label: ${response.statusText}`);
+                }
+
+                // Update the current email data
+                currentModalEmail.label_names = labelNames.filter(label => label.toLowerCase() !== 'marketing');
+
+                // Refresh the modal display
+                refreshModalBadge();
+
+                // Also update the email in the list if it's visible
+                const email = allEmails.find(e => e.id === messageId);
+                if (email) {
+                    email.label_names = currentModalEmail.label_names;
+                    renderEmails();
+                }
+            } catch (error) {
+                console.error('Error removing Marketing label:', error);
+                alert('Error removing Marketing label: ' + error.message);
+            }
+        }
+
+        async function addMarketingLabelFromList(event, messageId, accountId) {
+            if (event) {
+                event.stopPropagation();
+            }
+
+            if (!messageId || !accountId) {
+                return;
+            }
+
+            const email = allEmails.find(e => e.id === messageId);
+            if (!email) {
+                return;
+            }
+
+            const labelNames = email.label_names || [];
+            const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
+
+            if (hasMarketingLabel) {
+                return; // Already has label
+            }
+
+            try {
+                const url = `/api/emails/${encodeURIComponent(messageId)}/labels?account_id=${encodeURIComponent(accountId)}`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ label_names: ['Marketing'] })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `Failed to add label: ${response.statusText}`);
+                }
+
+                // Update the email data
+                email.label_names = [...labelNames, 'Marketing'];
+
+                // Refresh the list display
+                renderEmails();
+
+                // Also update modal if it's open for this email
+                if (currentModalEmail && currentModalEmail.id === messageId) {
+                    currentModalEmail.label_names = email.label_names;
+                    refreshModalBadge();
+                }
+            } catch (error) {
+                console.error('Error adding Marketing label:', error);
+                alert('Error adding Marketing label: ' + error.message);
+            }
+        }
+
+        async function removeMarketingLabelFromList(event, messageId, accountId) {
+            if (event) {
+                event.stopPropagation();
+            }
+
+            if (!messageId || !accountId) {
+                return;
+            }
+
+            const email = allEmails.find(e => e.id === messageId);
+            if (!email) {
+                return;
+            }
+
+            const labelNames = email.label_names || [];
+            const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
+
+            if (!hasMarketingLabel) {
+                return; // Doesn't have label
+            }
+
+            try {
+                const url = `/api/emails/${encodeURIComponent(messageId)}/labels?account_id=${encodeURIComponent(accountId)}`;
+                
+                const response = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ label_names: ['Marketing'] })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `Failed to remove label: ${response.statusText}`);
+                }
+
+                // Update the email data
+                email.label_names = labelNames.filter(label => label.toLowerCase() !== 'marketing');
+
+                // Refresh the list display
+                renderEmails();
+
+                // Also update modal if it's open for this email
+                if (currentModalEmail && currentModalEmail.id === messageId) {
+                    currentModalEmail.label_names = email.label_names;
+                    refreshModalBadge();
+                }
+            } catch (error) {
+                console.error('Error removing Marketing label:', error);
+                alert('Error removing Marketing label: ' + error.message);
+            }
+        }
+
+        function refreshModalBadge() {
+            if (!currentModalEmail) {
+                return;
+            }
+
+            const modalMeta = document.getElementById('modalMeta');
+            const from = parseSender(currentModalEmail.from || 'Unknown');
+            const to = currentModalEmail.to || '';
+            const cc = currentModalEmail.cc || '';
+            const date = formatDate(currentModalEmail.date || currentModalEmail.internalDate);
+            const updatedLabelNames = currentModalEmail.label_names || [];
+            const updatedHasMarketingLabel = updatedLabelNames.some(label => label.toLowerCase() === 'marketing');
+            
+            let metaHtml = `
+                <div class="modal-meta-row"><span class="modal-meta-label">From:</span> ${escapeHtml(from)}</div>
+                ${to ? `<div class="modal-meta-row"><span class="modal-meta-label">To:</span> ${escapeHtml(to)}</div>` : ''}
+                ${cc ? `<div class="modal-meta-row"><span class="modal-meta-label">Cc:</span> ${escapeHtml(cc)}</div>` : ''}
+                <div class="modal-meta-row"><span class="modal-meta-label">Date:</span> ${escapeHtml(date)}</div>
+                <div class="modal-meta-row">
+                    <span class="modal-meta-label">Labels:</span>
+                    ${updatedHasMarketingLabel 
+                        ? '<span class="marketing-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabel(event)" title="Remove Marketing label">×</span></span>' 
+                        : '<span class="marketing-badge" style="cursor: pointer; margin-left: 8px; opacity: 0.5; border-style: dashed;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">+ Marketing</span>'}
+                </div>
+            `;
+            modalMeta.innerHTML = metaHtml;
+        }
+
         function closeEmailModal() {
             const modal = document.getElementById('emailModal');
             modal.classList.remove('active');
+            currentModalEmail = null;
         }
 
         function switchEmailTab(tab) {

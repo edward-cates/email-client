@@ -25,9 +25,11 @@ from gmail.service import (
     add_labels,
     archive_message,
     get_emails,
+    get_label_name_mapping,
     get_message,
     get_message_count,
     parse_message_full,
+    remove_labels,
 )
 
 app = FastAPI()
@@ -183,6 +185,23 @@ async def add_labels_endpoint(
         return {"success": True, "message_id": message_id, "labels": result.get('labelIds', [])}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error adding labels: {str(e)}") from e
+
+
+@app.delete("/api/emails/{message_id}/labels")
+async def remove_labels_endpoint(
+    message_id: str,
+    request: LabelRequest,
+    account_id: str = Query("account1")
+):
+    """Remove labels from an email"""
+    if not is_authenticated(account_id):
+        raise HTTPException(status_code=401, detail="Account not authenticated")
+
+    try:
+        result = remove_labels(account_id, message_id, request.label_names)
+        return {"success": True, "message_id": message_id, "labels": result.get('labelIds', [])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error removing labels: {str(e)}") from e
 
 
 @app.get("/api/accounts")
@@ -518,7 +537,8 @@ async def get_email_details(
         if not message:
             raise HTTPException(status_code=404, detail="Email not found")
 
-        parsed = parse_message_full(message)
+        label_id_to_name = get_label_name_mapping(account_id)
+        parsed = parse_message_full(message, label_id_to_name)
         parsed['account_id'] = account_id
         return parsed
     except Exception as e:

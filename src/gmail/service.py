@@ -191,7 +191,7 @@ def parse_message(message: dict, label_id_to_name: dict[str, str] = None) -> dic
     }
 
 
-def parse_message_full(message: dict) -> dict:
+def parse_message_full(message: dict, label_id_to_name: dict[str, str] = None) -> dict:
     """Parse Gmail message with full details including HTML body"""
     payload = message.get('payload', {})
     headers = payload.get('headers', [])
@@ -202,6 +202,12 @@ def parse_message_full(message: dict) -> dict:
     # Get both text and HTML body
     body_text = _extract_body_text(payload)
     body_html = _extract_body_html(payload)
+
+    # Get label IDs and names
+    label_ids = message.get('labelIds', [])
+    label_names = []
+    if label_id_to_name:
+        label_names = [label_id_to_name.get(label_id, label_id) for label_id in label_ids]
 
     return {
         'id': message.get('id'),
@@ -216,7 +222,8 @@ def parse_message_full(message: dict) -> dict:
         'date': header_dict.get('date', ''),
         'body': body_text,
         'body_html': body_html,
-        'labels': message.get('labelIds', []),
+        'labels': label_ids,
+        'label_names': label_names,
         'internalDate': message.get('internalDate'),
     }
 
@@ -304,7 +311,8 @@ def get_or_create_label(account_id: str, label_name: str) -> str:
         # List all labels
         labels = service.users().labels().list(userId='me').execute()
         for label in labels.get('labels', []):
-            if label['name'] == label_name:
+            # Case-insensitive match
+            if label['name'].lower() == label_name.lower():
                 return label['id']
 
         # Label doesn't exist, create it
@@ -334,4 +342,45 @@ def add_labels(account_id: str, message_id: str, label_names: list[str]) -> dict
         return result
     except HttpError as error:
         logger.error("Error adding labels: %s", error)
+        raise
+
+
+def remove_labels(account_id: str, message_id: str, label_names: list[str]) -> dict:
+    """Remove labels from a message"""
+    service = get_gmail_service(account_id)
+
+    try:
+        # Get label IDs (labels must exist to be removed)
+        label_id_to_name = get_label_name_mapping(account_id)
+        # Create case-insensitive lookup
+        name_to_id = {}
+        for label_id, name in label_id_to_name.items():
+            name_lower = name.lower()
+            if name_lower not in name_to_id:
+                name_to_id[name_lower] = label_id
+            # Also store original case for exact match
+            if name not in name_to_id:
+                name_to_id[name] = label_id
+
+        label_ids = []
+        for name in label_names:
+            # Try exact match first, then case-insensitive
+            if name in name_to_id:
+                label_ids.append(name_to_id[name])
+            elif name.lower() in name_to_id:
+                label_ids.append(name_to_id[name.lower()])
+
+        if not label_ids:
+            # No labels to remove - log for debugging
+            logger.warning("No matching labels found to remove for: %s", label_names)
+            return {'id': message_id, 'labelIds': []}
+
+        result = service.users().messages().modify(
+            userId='me',
+            id=message_id,
+            body={'removeLabelIds': label_ids}
+        ).execute()
+        return result
+    except HttpError as error:
+        logger.error("Error removing labels: %s", error)
         raise
