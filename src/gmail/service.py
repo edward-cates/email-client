@@ -1,8 +1,9 @@
 """Gmail API service for fetching emails"""
 import base64
+import contextlib
 import logging
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Callable, Optional
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -30,7 +31,7 @@ def get_profile(account_id: str) -> dict:
 
 def list_messages(account_id: str, max_results: int = 50, query: str = None, page_token: str = None) -> tuple[list[dict], str | None]:
     """List messages from Gmail inbox
-    
+
     Returns:
         tuple: (messages list, next_page_token)
     """
@@ -59,7 +60,7 @@ def list_messages(account_id: str, max_results: int = 50, query: str = None, pag
 def get_message_count(account_id: str, query: str = None) -> int:
     """Get total count of messages in inbox"""
     service = get_gmail_service(account_id)
-    
+
     try:
         params = {
             'userId': 'me',
@@ -68,7 +69,7 @@ def get_message_count(account_id: str, query: str = None) -> int:
         }
         if query:
             params['q'] = query
-        
+
         results = service.users().messages().list(**params).execute()
         # Gmail API provides resultSizeEstimate which is approximate
         return results.get('resultSizeEstimate', 0)
@@ -101,10 +102,8 @@ def _extract_body_text(payload: dict) -> str:
     if payload.get('mimeType') == 'text/plain':
         data = payload.get('body', {}).get('data', '')
         if data:
-            try:
+            with contextlib.suppress(Exception):
                 body_text = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
-            except Exception:
-                pass
         return body_text
 
     # Check nested parts
@@ -113,12 +112,10 @@ def _extract_body_text(payload: dict) -> str:
             if part.get('mimeType') == 'text/plain':
                 data = part.get('body', {}).get('data', '')
                 if data:
-                    try:
+                    with contextlib.suppress(Exception):
                         body_text = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
                         if body_text:
                             break
-                    except Exception:
-                        pass
             elif part.get('mimeType', '').startswith('multipart/'):
                 # Recursively check nested multipart
                 nested_text = _extract_body_text(part)
@@ -137,10 +134,8 @@ def _extract_body_html(payload: dict) -> str:
     if payload.get('mimeType') == 'text/html':
         data = payload.get('body', {}).get('data', '')
         if data:
-            try:
+            with contextlib.suppress(Exception):
                 body_html = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
-            except Exception:
-                pass
         return body_html
 
     # Check nested parts
@@ -149,12 +144,10 @@ def _extract_body_html(payload: dict) -> str:
             if part.get('mimeType') == 'text/html':
                 data = part.get('body', {}).get('data', '')
                 if data:
-                    try:
+                    with contextlib.suppress(Exception):
                         body_html = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
                         if body_html:
                             break
-                    except Exception:
-                        pass
             elif part.get('mimeType', '').startswith('multipart/'):
                 # Recursively check nested multipart
                 nested_html = _extract_body_html(part)
@@ -228,29 +221,29 @@ def parse_message_full(message: dict) -> dict:
     }
 
 
-def get_emails(account_id: str, max_results: int = 50, page_token: str = None, progress_callback: Optional[Callable[[int, int, str], None]] = None) -> tuple[list[dict], str | None]:
+def get_emails(account_id: str, max_results: int = 50, page_token: str = None, progress_callback: Callable[[int, int, str], None] | None = None) -> tuple[list[dict], str | None]:
     """Get parsed emails for an account with parallel fetching
-    
+
     Args:
         account_id: Account identifier
         max_results: Maximum number of emails to fetch
         page_token: Pagination token
         progress_callback: Optional callback(current, total, account_id) for progress updates
-    
+
     Returns:
         tuple: (emails list, next_page_token)
     """
     messages, next_page_token = list_messages(account_id, max_results=max_results, page_token=page_token)
-    
+
     if not messages:
         return [], next_page_token
-    
+
     # Get label ID to name mapping once for this account
     label_id_to_name = get_label_name_mapping(account_id)
-    
+
     total = len(messages)
     emails = []
-    
+
     # Fetch messages in parallel (max 20 concurrent requests to avoid rate limits)
     with ThreadPoolExecutor(max_workers=20) as executor:
         # Submit all fetch tasks
@@ -258,14 +251,12 @@ def get_emails(account_id: str, max_results: int = 50, page_token: str = None, p
             executor.submit(get_message, account_id, msg['id'], 'full'): msg
             for msg in messages
         }
-        
+
         # Process completed fetches
-        completed = 0
-        for future in as_completed(future_to_msg):
-            completed += 1
+        for completed, future in enumerate(as_completed(future_to_msg), 1):
             if progress_callback:
                 progress_callback(completed, total, account_id)
-            
+
             try:
                 message = future.result()
                 if message:
@@ -273,7 +264,7 @@ def get_emails(account_id: str, max_results: int = 50, page_token: str = None, p
                     emails.append(parsed)
             except Exception as e:
                 logger.error("Error fetching message: %s", e)
-    
+
     return emails, next_page_token
 
 
@@ -296,7 +287,7 @@ def archive_message(account_id: str, message_id: str) -> dict:
 def get_label_name_mapping(account_id: str) -> dict[str, str]:
     """Get mapping of label ID to label name for an account"""
     service = get_gmail_service(account_id)
-    
+
     try:
         labels = service.users().labels().list(userId='me').execute()
         return {label['id']: label['name'] for label in labels.get('labels', [])}

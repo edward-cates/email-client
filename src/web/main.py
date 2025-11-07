@@ -21,7 +21,14 @@ from gmail.auth import (
     is_authenticated,
 )
 from gmail.config import discover_accounts
-from gmail.service import add_labels, archive_message, get_emails, get_message, get_message_count, parse_message_full
+from gmail.service import (
+    add_labels,
+    archive_message,
+    get_emails,
+    get_message,
+    get_message_count,
+    parse_message_full,
+)
 
 app = FastAPI()
 
@@ -126,7 +133,7 @@ async def archive_email_endpoint(
         raise HTTPException(status_code=401, detail="Account not authenticated")
 
     try:
-        result = archive_message(account_id, message_id)
+        archive_message(account_id, message_id)
         return {"success": True, "message_id": message_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error archiving email: {str(e)}") from e
@@ -136,23 +143,23 @@ async def archive_email_endpoint(
 async def bulk_archive_endpoint(request: BulkArchiveRequest):
     """Archive multiple emails"""
     results = {"success": [], "failed": []}
-    
+
     for message_id in request.message_ids:
         account_id = request.account_ids.get(message_id)
         if not account_id:
             results["failed"].append({"message_id": message_id, "error": "Account ID not found"})
             continue
-        
+
         if not is_authenticated(account_id):
             results["failed"].append({"message_id": message_id, "error": "Account not authenticated"})
             continue
-        
+
         try:
             archive_message(account_id, message_id)
             results["success"].append(message_id)
         except Exception as e:
             results["failed"].append({"message_id": message_id, "error": str(e)})
-    
+
     return {
         "success": True,
         "archived_count": len(results["success"]),
@@ -183,7 +190,7 @@ async def list_accounts():
     """List all discovered accounts and their authentication status"""
     accounts = []
     discovered = discover_accounts()
-    
+
     for account_id in discovered:
         authenticated = is_authenticated(account_id)
         email = None
@@ -194,7 +201,7 @@ async def list_accounts():
             "email": email,
             "authenticated": authenticated
         })
-    
+
     return {"accounts": accounts}
 
 
@@ -207,14 +214,14 @@ async def get_merged_emails(
     discovered = discover_accounts()
     all_emails = []
     account_page_tokens = {}
-    
+
     # Parse page_token if provided (format: account1:token1,account2:token2)
     if page_token:
         for token_pair in page_token.split(','):
             if ':' in token_pair:
                 acc_id, token = token_pair.split(':', 1)
                 account_page_tokens[acc_id] = token
-    
+
     # Fetch emails from each account
     next_tokens = {}
     for account_id in discovered:
@@ -231,18 +238,18 @@ async def get_merged_emails(
             except Exception as e:
                 # Log error but continue with other accounts
                 print(f"Error fetching emails for {account_id}: {e}")
-    
+
     # Sort by internalDate (newest first)
     all_emails.sort(key=lambda x: int(x.get('internalDate', 0) or 0), reverse=True)
-    
+
     # Limit to max_results total
     all_emails = all_emails[:max_results]
-    
+
     # Build next_page_token from accounts that have more pages
     next_page_token = None
     if next_tokens:
         next_page_token = ','.join([f"{acc_id}:{token}" for acc_id, token in next_tokens.items()])
-    
+
     return {
         "emails": all_emails,
         "count": len(all_emails),
@@ -260,30 +267,30 @@ async def get_merged_emails_stream(
     def generate():
         discovered = discover_accounts()
         authenticated_accounts = [acc_id for acc_id in discovered if is_authenticated(acc_id)]
-        
+
         if not authenticated_accounts:
             yield f"data: {json.dumps({'type': 'error', 'message': 'No authenticated accounts'})}\n\n"
             return
-        
+
         account_page_tokens = {}
         if page_token:
             for token_pair in page_token.split(','):
                 if ':' in token_pair:
                     acc_id, token = token_pair.split(':', 1)
                     account_page_tokens[acc_id] = token
-        
+
         all_emails = []
         next_tokens = {}
         total_accounts = len(authenticated_accounts)
-        
+
         # Track progress across all accounts
         account_progress = {acc_id: {'current': 0, 'total': 0} for acc_id in authenticated_accounts}
         progress_queue = Queue()
-        
+
         def account_progress_cb(current: int, total: int, acc_id: str):
             account_progress[acc_id] = {'current': current, 'total': total}
             # Calculate per-account progress percent
-            account_percent = int((current / total * 100)) if total > 0 else 0
+            account_percent = int(current / total * 100) if total > 0 else 0
             progress_data = {
                 'type': 'progress',
                 'account_id': acc_id,
@@ -292,33 +299,38 @@ async def get_merged_emails_stream(
                 'progress_percent': account_percent
             }
             progress_queue.put(progress_data)
-        
+
         # Fetch emails from each account
         for idx, account_id in enumerate(authenticated_accounts):
             try:
                 yield f"data: {json.dumps({'type': 'account_start', 'account_id': account_id, 'account_num': idx + 1, 'total_accounts': total_accounts})}\n\n"
-                
+
                 acc_page_token = account_page_tokens.get(account_id)
-                
+
                 # Fetch emails in a thread to allow progress streaming
                 emails_result = [None]
                 exception_result = [None]
-                
-                def fetch_emails():
+
+                def fetch_emails(
+                    captured_account_id=account_id,
+                    captured_acc_page_token=acc_page_token,
+                    captured_emails_result=emails_result,
+                    captured_exception_result=exception_result
+                ):
                     try:
                         emails, next_token = get_emails(
-                            account_id, 
-                            max_results=max_results, 
-                            page_token=acc_page_token,
+                            captured_account_id,
+                            max_results=max_results,
+                            page_token=captured_acc_page_token,
                             progress_callback=account_progress_cb
                         )
-                        emails_result[0] = (emails, next_token)
+                        captured_emails_result[0] = (emails, next_token)
                     except Exception as e:
-                        exception_result[0] = e
-                
+                        captured_exception_result[0] = e
+
                 fetch_thread = Thread(target=fetch_emails)
                 fetch_thread.start()
-                
+
                 # Stream progress updates while fetching
                 while fetch_thread.is_alive():
                     try:
@@ -326,50 +338,50 @@ async def get_merged_emails_stream(
                         while not progress_queue.empty():
                             progress_data = progress_queue.get_nowait()
                             yield f"data: {json.dumps(progress_data)}\n\n"
-                    except:
+                    except Exception:
                         pass
                     time.sleep(0.1)  # Small delay to avoid busy waiting
-                
+
                 # Get any remaining progress updates
                 while not progress_queue.empty():
                     progress_data = progress_queue.get_nowait()
                     yield f"data: {json.dumps(progress_data)}\n\n"
-                
+
                 fetch_thread.join()
-                
+
                 if exception_result[0]:
                     raise exception_result[0]
-                
+
                 emails, next_token = emails_result[0]
-                
+
                 # Add account_id to each email and stream them
                 for email in emails:
                     email['account_id'] = account_id
                     all_emails.append(email)
                     yield f"data: {json.dumps({'type': 'email', 'email': email})}\n\n"
-                
+
                 if next_token:
                     next_tokens[account_id] = next_token
-                    
+
                 yield f"data: {json.dumps({'type': 'account_complete', 'account_id': account_id, 'count': len(emails)})}\n\n"
-                
+
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'account_id': account_id, 'message': str(e)})}\n\n"
-        
+
         # Sort by internalDate (newest first)
         all_emails.sort(key=lambda x: int(x.get('internalDate', 0) or 0), reverse=True)
-        
+
         # Limit to max_results total
         all_emails = all_emails[:max_results]
-        
+
         # Build next_page_token
         next_page_token = None
         if next_tokens:
             next_page_token = ','.join([f"{acc_id}:{token}" for acc_id, token in next_tokens.items()])
-        
+
         # Send final result
         yield f"data: {json.dumps({'type': 'complete', 'count': len(all_emails), 'next_page_token': next_page_token})}\n\n"
-    
+
     return StreamingResponse(generate(), media_type="text/event-stream")
 
 
@@ -378,7 +390,7 @@ async def get_total_email_count():
     """Get total count of emails across all authenticated accounts"""
     discovered = discover_accounts()
     total_count = 0
-    
+
     for account_id in discovered:
         if is_authenticated(account_id):
             try:
@@ -386,7 +398,7 @@ async def get_total_email_count():
                 total_count += count
             except Exception as e:
                 print(f"Error getting count for {account_id}: {e}")
-    
+
     return {
         "total_count": total_count,
         "accounts_checked": len(discovered)
@@ -398,7 +410,7 @@ async def get_account_email_counts():
     """Get email counts for each authenticated account"""
     discovered = discover_accounts()
     account_counts = {}
-    
+
     for account_id in discovered:
         if is_authenticated(account_id):
             try:
@@ -407,7 +419,7 @@ async def get_account_email_counts():
             except Exception as e:
                 print(f"Error getting count for {account_id}: {e}")
                 account_counts[account_id] = 0
-    
+
     return {
         "account_counts": account_counts
     }
@@ -422,25 +434,25 @@ async def get_emails_stream(
     """Stream emails for a single account with progress updates"""
     if not is_authenticated(account_id):
         raise HTTPException(status_code=401, detail="Account not authenticated")
-    
+
     def generate():
         progress_queue = Queue()
-        
+
         def progress_cb(current: int, total: int, acc_id: str):
             progress_data = {
                 'type': 'progress',
                 'account_id': acc_id,
                 'current': current,
                 'total': total,
-                'progress_percent': int((current / total * 100)) if total > 0 else 0
+                'progress_percent': int(current / total * 100) if total > 0 else 0
             }
             progress_queue.put(progress_data)
-        
+
         # Fetch emails in a thread to allow progress streaming
         emails_result = [None]
         next_token_result = [None]
         exception_result = [None]
-        
+
         def fetch_emails():
             try:
                 emails, next_token = get_emails(
@@ -453,42 +465,42 @@ async def get_emails_stream(
                 next_token_result[0] = next_token
             except Exception as e:
                 exception_result[0] = e
-        
+
         fetch_thread = Thread(target=fetch_emails)
         fetch_thread.start()
-        
+
         # Stream progress updates while fetching
         while fetch_thread.is_alive():
             try:
                 while not progress_queue.empty():
                     progress_data = progress_queue.get_nowait()
                     yield f"data: {json.dumps(progress_data)}\n\n"
-            except:
+            except Exception:
                 pass
             time.sleep(0.1)
-        
+
         # Get any remaining progress updates
         while not progress_queue.empty():
             progress_data = progress_queue.get_nowait()
             yield f"data: {json.dumps(progress_data)}\n\n"
-        
+
         fetch_thread.join()
-        
+
         if exception_result[0]:
             yield f"data: {json.dumps({'type': 'error', 'account_id': account_id, 'message': str(exception_result[0])})}\n\n"
             return
-        
+
         emails = emails_result[0] or []
         next_token = next_token_result[0]
-        
+
         # Stream each email
         for email in emails:
             email['account_id'] = account_id
             yield f"data: {json.dumps({'type': 'email', 'email': email})}\n\n"
-        
+
         # Send completion
         yield f"data: {json.dumps({'type': 'complete', 'account_id': account_id, 'count': len(emails), 'next_page_token': next_token})}\n\n"
-    
+
     return StreamingResponse(generate(), media_type="text/event-stream")
 
 
@@ -505,7 +517,7 @@ async def get_email_details(
         message = get_message(account_id, message_id, format='full')
         if not message:
             raise HTTPException(status_code=404, detail="Email not found")
-        
+
         parsed = parse_message_full(message)
         parsed['account_id'] = account_id
         return parsed
