@@ -34,6 +34,28 @@
             color: #5f6368;
         }
 
+        .account-selector {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .account-btn {
+            padding: 6px 12px;
+            border: 1px solid #dadce0;
+            border-radius: 16px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            color: #5f6368;
+        }
+
+        .account-btn.active {
+            background: #e8f0fe;
+            color: #1a73e8;
+            border-color: #1a73e8;
+        }
+
         .search-box {
             flex: 1;
             max-width: 720px;
@@ -81,6 +103,38 @@
 
         .compose-btn:hover {
             box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
+        .auth-section {
+            padding: 16px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 10px 16px;
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .auth-btn:hover {
+            background-color: #1557b0;
+        }
+
+        .auth-status {
+            font-size: 12px;
+            color: #5f6368;
+            margin-top: 8px;
+        }
+
+        .auth-status.authenticated {
+            color: #137333;
         }
 
         .nav-item {
@@ -196,11 +250,31 @@
             font-size: 120px;
             margin-bottom: 16px;
         }
+
+        .loading {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #5f6368;
+        }
+
+        .error {
+            padding: 16px;
+            background-color: #fce8e6;
+            color: #c5221f;
+            border-radius: 4px;
+            margin: 16px;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="logo">Gmail</div>
+        <div class="account-selector">
+            <button class="account-btn active" data-account="account1">Account 1</button>
+            <button class="account-btn" data-account="account2">Account 2</button>
+        </div>
         <div class="search-box">
             <span>🔍</span>
             <input type="text" placeholder="Search mail">
@@ -210,6 +284,10 @@
     <div class="main-container">
         <div class="sidebar">
             <button class="compose-btn">✏️ Compose</button>
+            <div class="auth-section">
+                <button class="auth-btn" id="authBtn">Sign in with Google</button>
+                <div class="auth-status" id="authStatus"></div>
+            </div>
             <div class="nav-item active">
                 <span>📥</span>
                 <span>Inbox</span>
@@ -234,37 +312,164 @@
 
         <div class="content-area">
             <div class="toolbar">
-                <button>☑️</button>
-                <button>🔄</button>
-                <button>🏷️</button>
-                <button>🗑️</button>
+                <button onclick="refreshEmails()">🔄</button>
             </div>
 
-            <div class="email-list">
-                <div class="email-item unread">
-                    <input type="checkbox" class="email-checkbox">
-                    <div class="email-sender">John Doe</div>
-                    <div class="email-subject">Welcome to Gmail Client</div>
-                    <div class="email-preview">This is a sample email preview text...</div>
-                    <div class="email-date">Today</div>
-                </div>
-                <div class="email-item">
-                    <input type="checkbox" class="email-checkbox">
-                    <div class="email-sender">Jane Smith</div>
-                    <div class="email-subject">Meeting Reminder</div>
-                    <div class="email-preview">Don't forget about our meeting tomorrow...</div>
-                    <div class="email-date">Yesterday</div>
-                </div>
-                <div class="email-item unread">
-                    <input type="checkbox" class="email-checkbox">
-                    <div class="email-sender">Team Updates</div>
-                    <div class="email-subject">Weekly Newsletter</div>
-                    <div class="email-preview">Here's what happened this week...</div>
-                    <div class="email-date">2 days ago</div>
-                </div>
+            <div class="email-list" id="emailList">
+                <div class="loading">Loading...</div>
             </div>
         </div>
     </div>
+
+    <script>
+        let currentAccount = 'account1';
+
+        // Check URL params for auth callback
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('auth_success') === 'true') {
+            setTimeout(() => {
+                checkAuthStatus();
+                loadEmails();
+            }, 500);
+        }
+        if (urlParams.get('auth_error')) {
+            showError('Authentication failed: ' + urlParams.get('auth_error'));
+        }
+
+        // Account selector
+        document.querySelectorAll('.account-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.account-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentAccount = btn.dataset.account;
+                checkAuthStatus();
+                loadEmails();
+            });
+        });
+
+        // Auth button
+        document.getElementById('authBtn').addEventListener('click', startAuth);
+
+        // Initial load
+        checkAuthStatus();
+        loadEmails();
+
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch(`/api/auth/status?account_id=${currentAccount}`);
+                const data = await response.json();
+                
+                const authBtn = document.getElementById('authBtn');
+                const authStatus = document.getElementById('authStatus');
+                
+                if (data.authenticated) {
+                    authBtn.textContent = '✓ Authenticated';
+                    authBtn.style.backgroundColor = '#137333';
+                    authStatus.textContent = data.email || 'Authenticated';
+                    authStatus.classList.add('authenticated');
+                    authBtn.onclick = null;
+                } else {
+                    authBtn.textContent = 'Sign in with Google';
+                    authBtn.style.backgroundColor = '#1a73e8';
+                    authStatus.textContent = 'Not authenticated';
+                    authStatus.classList.remove('authenticated');
+                    authBtn.onclick = startAuth;
+                }
+            } catch (error) {
+                console.error('Error checking auth status:', error);
+            }
+        }
+
+        async function startAuth() {
+            try {
+                const response = await fetch(`/api/auth/start?account_id=${currentAccount}`);
+                const data = await response.json();
+                
+                // Open auth URL in same window
+                window.location.href = data.authorization_url;
+            } catch (error) {
+                showError('Failed to start authentication: ' + error.message);
+            }
+        }
+
+        async function loadEmails() {
+            const emailList = document.getElementById('emailList');
+            emailList.innerHTML = '<div class="loading">Loading emails...</div>';
+
+            try {
+                const response = await fetch(`/api/emails?account_id=${currentAccount}&max_results=50`);
+                
+                if (response.status === 401) {
+                    emailList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><div>Please sign in to view emails</div></div>';
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('Failed to load emails');
+                }
+
+                const data = await response.json();
+                
+                if (data.emails.length === 0) {
+                    emailList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>No emails found</div></div>';
+                    return;
+                }
+
+                emailList.innerHTML = data.emails.map(email => {
+                    const date = formatDate(email.date);
+                    const isUnread = !email.labels.includes('READ');
+                    return `
+                        <div class="email-item ${isUnread ? 'unread' : ''}">
+                            <input type="checkbox" class="email-checkbox">
+                            <div class="email-sender">${escapeHtml(parseSender(email.from))}</div>
+                            <div class="email-subject">${escapeHtml(email.subject)}</div>
+                            <div class="email-preview">${escapeHtml(email.snippet)}</div>
+                            <div class="email-date">${date}</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                emailList.innerHTML = `<div class="error">Error loading emails: ${error.message}</div>`;
+            }
+        }
+
+        function refreshEmails() {
+            loadEmails();
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            if (days === 0) return 'Today';
+            if (days === 1) return 'Yesterday';
+            if (days < 7) return `${days} days ago`;
+            
+            return date.toLocaleDateString();
+        }
+
+        function parseSender(from) {
+            // Extract name or email from "Name <email@example.com>" format
+            const match = from.match(/^(.+?)\s*<(.+)>$/);
+            if (match) {
+                return match[1].trim() || match[2];
+            }
+            return from;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showError(message) {
+            const emailList = document.getElementById('emailList');
+            emailList.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+        }
+    </script>
 </body>
 </html>
-
