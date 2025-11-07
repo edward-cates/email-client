@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gmail Client</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         * {
             margin: 0;
@@ -141,11 +142,48 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 16px;
+        }
+
+        .email-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
         }
 
         .email-count {
             font-size: 14px;
             color: #5f6368;
+        }
+
+        .email-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #1a73e8;
+        }
+
+        .archive-btn {
+            padding: 8px 16px;
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .archive-btn:hover {
+            background-color: #1557b0;
+        }
+
+        .archive-btn:disabled {
+            background-color: #e0e0e0;
+            color: #9aa0a6;
+            cursor: not-allowed;
         }
 
         .progress-container {
@@ -262,10 +300,27 @@
             grid-template-rows: auto auto;
             gap: 8px 16px;
             cursor: pointer;
+            position: relative;
         }
 
         .email-item:hover {
             background-color: #f8f9fa;
+        }
+
+        .email-item-checkbox {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #1a73e8;
+            z-index: 10;
+        }
+
+        .email-item.has-checkbox {
+            padding-left: 48px;
         }
 
         .email-header-row {
@@ -529,7 +584,11 @@
 
         <div class="content-area">
             <div class="email-header">
-                <div class="email-count" id="emailCount">Loading...</div>
+                <div class="email-header-left">
+                    <input type="checkbox" class="email-checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                    <div class="email-count" id="emailCount">Loading...</div>
+                </div>
+                <button class="archive-btn" id="archiveBtn" onclick="archiveSelectedEmails()" disabled>Archive</button>
             </div>
             <div class="progress-container" id="progressContainer" style="display: none;">
                 <div id="accountProgressBars"></div>
@@ -565,6 +624,7 @@
         let isLoading = false;
         let hasMoreEmails = true;
         const BATCH_SIZE = 20; // Number of emails to load per batch
+        let selectedEmails = new Set(); // Set of selected email IDs
 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('auth_success') === 'true') {
@@ -1223,9 +1283,17 @@
                 const subject = email.subject || '(No subject)';
                 const snippet = email.snippet || '';
                 const timeSent = formatDate(email.date || email.internalDate);
+                const isSelected = selectedEmails.has(email.id);
 
                 return `
-                    <div class="email-item" data-message-id="${escapeHtml(email.id)}" onclick="openEmailModal('${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')">
+                    <div class="email-item has-checkbox" 
+                         data-message-id="${escapeHtml(email.id)}"
+                         onclick="openEmailModal('${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')">
+                        <input type="checkbox" class="email-item-checkbox" 
+                               data-message-id="${escapeHtml(email.id)}"
+                               ${isSelected ? 'checked' : ''}
+                               onchange="toggleEmailSelection('${escapeHtml(email.id)}', this.checked)"
+                               onclick="event.stopPropagation()">
                         <div class="email-header-row">
                             <div class="email-sender" title="${escapeHtml(sender)}">${escapeHtml(sender)}</div>
                             <div class="email-time">${escapeHtml(timeSent)}</div>
@@ -1247,6 +1315,8 @@
 
             emailList.innerHTML = emailsHtml + loadingMoreHtml;
             updateEmailCount(allEmails.length);
+            updateSelectAllCheckbox();
+            updateArchiveButton();
         }
 
         function updateEmailCount(count) {
@@ -1523,6 +1593,155 @@
                 }
             }
         });
+
+        // Selection management functions
+        function toggleEmailSelection(messageId, isChecked) {
+            if (isChecked) {
+                selectedEmails.add(messageId);
+            } else {
+                selectedEmails.delete(messageId);
+            }
+            updateArchiveButton();
+            updateSelectAllCheckbox();
+        }
+
+        function toggleSelectAll() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            const isChecked = selectAllCheckbox.checked;
+            
+            if (isChecked) {
+                // Select all visible emails
+                allEmails.forEach(email => {
+                    selectedEmails.add(email.id);
+                });
+            } else {
+                // Deselect all
+                selectedEmails.clear();
+            }
+            
+            // Update all checkboxes
+            document.querySelectorAll('.email-item-checkbox').forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            
+            updateArchiveButton();
+        }
+
+        function updateSelectAllCheckbox() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            if (allEmails.length === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+                return;
+            }
+            
+            const selectedCount = selectedEmails.size;
+            if (selectedCount === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else if (selectedCount === allEmails.length) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+
+        function updateArchiveButton() {
+            const archiveBtn = document.getElementById('archiveBtn');
+            archiveBtn.disabled = selectedEmails.size === 0;
+        }
+
+        async function archiveSelectedEmails() {
+            if (selectedEmails.size === 0) {
+                return;
+            }
+
+            const messageIds = Array.from(selectedEmails);
+            const accountIds = {};
+            messageIds.forEach(messageId => {
+                accountIds[messageId] = emailAccountMap[messageId];
+            });
+
+            // Show confirmation dialog
+            const result = await Swal.fire({
+                title: 'Archive Emails?',
+                text: `Are you sure you want to archive ${selectedEmails.size} email${selectedEmails.size > 1 ? 's' : ''}?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#1a73e8',
+                cancelButtonColor: '#5f6368',
+                confirmButtonText: 'Archive',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            // Show loading state
+            Swal.fire({
+                title: 'Archiving...',
+                text: `Archiving ${selectedEmails.size} email${selectedEmails.size > 1 ? 's' : ''}`,
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            try {
+                const response = await fetch('/api/emails/bulk-archive', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message_ids: messageIds,
+                        account_ids: accountIds
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to archive emails');
+                }
+
+                const data = await response.json();
+
+                // Remove archived emails from the list
+                const archivedIds = new Set(data.results.success);
+                allEmails = allEmails.filter(e => !archivedIds.has(e.id));
+                selectedEmails.clear();
+
+                // Re-render emails
+                renderEmails();
+                updateArchiveButton();
+                updateSelectAllCheckbox();
+
+                // Show success message
+                if (data.failed_count > 0) {
+                    Swal.fire({
+                        title: 'Partially Complete',
+                        text: `Archived ${data.archived_count} email${data.archived_count > 1 ? 's' : ''}, ${data.failed_count} failed`,
+                        icon: 'warning'
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: `Archived ${data.archived_count} email${data.archived_count > 1 ? 's' : ''}`,
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            } catch (error) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Failed to archive emails: ' + error.message,
+                    icon: 'error'
+                });
+            }
+        }
     </script>
 </body>
 </html>

@@ -29,6 +29,11 @@ app = FastAPI()
 class LabelRequest(BaseModel):
     label_names: list[str]
 
+
+class BulkArchiveRequest(BaseModel):
+    message_ids: list[str]
+    account_ids: dict[str, str]  # Map of message_id to account_id
+
 # CORS middleware for frontend requests
 app.add_middleware(
     CORSMiddleware,
@@ -125,6 +130,35 @@ async def archive_email_endpoint(
         return {"success": True, "message_id": message_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error archiving email: {str(e)}") from e
+
+
+@app.post("/api/emails/bulk-archive")
+async def bulk_archive_endpoint(request: BulkArchiveRequest):
+    """Archive multiple emails"""
+    results = {"success": [], "failed": []}
+    
+    for message_id in request.message_ids:
+        account_id = request.account_ids.get(message_id)
+        if not account_id:
+            results["failed"].append({"message_id": message_id, "error": "Account ID not found"})
+            continue
+        
+        if not is_authenticated(account_id):
+            results["failed"].append({"message_id": message_id, "error": "Account not authenticated"})
+            continue
+        
+        try:
+            archive_message(account_id, message_id)
+            results["success"].append(message_id)
+        except Exception as e:
+            results["failed"].append({"message_id": message_id, "error": str(e)})
+    
+    return {
+        "success": True,
+        "archived_count": len(results["success"]),
+        "failed_count": len(results["failed"]),
+        "results": results
+    }
 
 
 @app.post("/api/emails/{message_id}/labels")
