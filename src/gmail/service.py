@@ -1,6 +1,8 @@
 """Gmail API service for fetching emails"""
 import base64
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Callable, Optional
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -16,8 +18,7 @@ def get_gmail_service(account_id: str):
     if not creds:
         raise ValueError(f"Account {account_id} is not authenticated")
 
-    service = build('gmail', 'v1', credentials=creds)
-    return service
+    return build('gmail', 'v1', credentials=creds)
 
 
 def get_profile(account_id: str) -> dict:
@@ -27,34 +28,57 @@ def get_profile(account_id: str) -> dict:
     return profile
 
 
-def list_messages(account_id: str, max_results: int = 50, query: str = None) -> list[dict]:
-    """
-    List messages from Gmail
-    Returns list of message summaries with id, threadId
+def list_messages(account_id: str, max_results: int = 50, query: str = None, page_token: str = None) -> tuple[list[dict], str | None]:
+    """List messages from Gmail inbox
+    
+    Returns:
+        tuple: (messages list, next_page_token)
     """
     service = get_gmail_service(account_id)
 
     try:
         params = {
             'userId': 'me',
-            'maxResults': max_results
+            'maxResults': max_results,
+            'labelIds': ['INBOX']
         }
         if query:
             params['q'] = query
+        if page_token:
+            params['pageToken'] = page_token
 
         results = service.users().messages().list(**params).execute()
         messages = results.get('messages', [])
-        return messages
+        next_page_token = results.get('nextPageToken')
+        return messages, next_page_token
     except HttpError as error:
         logger.error("Error listing messages: %s", error)
-        return []
+        return [], None
 
 
-def get_message(account_id: str, message_id: str, format: str = 'full') -> dict:
-    """
-    Get a full message by ID
-    format: 'full', 'metadata', 'minimal', 'raw'
-    """
+def get_message_count(account_id: str, query: str = None) -> int:
+    """Get total count of messages in inbox"""
+    service = get_gmail_service(account_id)
+    
+    try:
+        params = {
+            'userId': 'me',
+            'labelIds': ['INBOX'],
+            'maxResults': 1  # We only need the resultSizeEstimate
+        }
+        if query:
+            params['q'] = query
+        
+        results = service.users().messages().list(**params).execute()
+        # Gmail API provides resultSizeEstimate which is approximate
+        return results.get('resultSizeEstimate', 0)
+    except HttpError as error:
+        logger.error("Error getting message count: %s", error)
+        return 0
+
+
+def get_message(account_id: str, message_id: str, format: str = 'full') -> dict | None:
+    """Get a full message by ID"""
     service = get_gmail_service(account_id)
 
     try:
@@ -65,8 +89,44 @@ def get_message(account_id: str, message_id: str, format: str = 'full') -> dict:
         ).execute()
         return message
     except HttpError as error:
-        logger.error("Error getting message: %s", error)
-        return {}
+        logger.error("Error getting message %s: %s", message_id, error)
+        return None
+
+
+def _extract_body_text(payload: dict) -> str:
+    """Recursively extract text/plain body from message payload"""
+    body_text = ""
+
+    # Check if this part has text/plain
+    if payload.get('mimeType') == 'text/plain':
+        data = payload.get('body', {}).get('data', '')
+        if data:
+            try:
+                body_text = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+            except Exception:
+                pass
+        return body_text
+
+    # Check nested parts
+    if 'parts' in payload:
+        for part in payload['parts']:
+            if part.get('mimeType') == 'text/plain':
+                data = part.get('body', {}).get('data', '')
+                if data:
+                    try:
+                        body_text = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+                        if body_text:
+                            break
+                    except Exception:
+                        pass
+            elif part.get('mimeType', '').startswith('multipart/'):
+                # Recursively check nested multipart
+                nested_text = _extract_body_text(part)
+                if nested_text:
+                    body_text = nested_text
+                    break
+
+    return body_text
 
 
 def parse_message(message: dict) -> dict:
@@ -78,18 +138,7 @@ def parse_message(message: dict) -> dict:
     header_dict = {h['name'].lower(): h['value'] for h in headers}
 
     # Get body text
-    body_text = ""
-    if 'parts' in payload:
-        for part in payload['parts']:
-            if part.get('mimeType') == 'text/plain':
-                data = part.get('body', {}).get('data', '')
-                if data:
-                    body_text = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
-                    break
-    elif payload.get('mimeType') == 'text/plain':
-        data = payload.get('body', {}).get('data', '')
-        if data:
-            body_text = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+    body_text = _extract_body_text(payload)
 
     return {
         'id': message.get('id'),
@@ -102,21 +151,108 @@ def parse_message(message: dict) -> dict:
         'body': body_text,
         'labels': message.get('labelIds', []),
         'internalDate': message.get('internalDate'),
+        # Note: account_id will be added by the API endpoint
     }
 
 
-def get_emails(account_id: str, max_results: int = 50) -> list[dict]:
+def get_emails(account_id: str, max_results: int = 50, page_token: str = None, progress_callback: Optional[Callable[[int, int, str], None]] = None) -> tuple[list[dict], str | None]:
+    """Get parsed emails for an account with parallel fetching
+    
+    Args:
+        account_id: Account identifier
+        max_results: Maximum number of emails to fetch
+        page_token: Pagination token
+        progress_callback: Optional callback(current, total, account_id) for progress updates
+    
+    Returns:
+        tuple: (emails list, next_page_token)
     """
-    Get parsed emails for an account
-    Returns list of parsed message dictionaries
-    """
-    messages = list_messages(account_id, max_results=max_results)
+    messages, next_page_token = list_messages(account_id, max_results=max_results, page_token=page_token)
+    
+    if not messages:
+        return [], next_page_token
+    
+    total = len(messages)
     emails = []
+    
+    # Fetch messages in parallel (max 20 concurrent requests to avoid rate limits)
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        # Submit all fetch tasks
+        future_to_msg = {
+            executor.submit(get_message, account_id, msg['id'], 'full'): msg
+            for msg in messages
+        }
+        
+        # Process completed fetches
+        completed = 0
+        for future in as_completed(future_to_msg):
+            completed += 1
+            if progress_callback:
+                progress_callback(completed, total, account_id)
+            
+            try:
+                message = future.result()
+                if message:
+                    parsed = parse_message(message)
+                    emails.append(parsed)
+            except Exception as e:
+                logger.error("Error fetching message: %s", e)
+    
+    return emails, next_page_token
 
-    for msg in messages:
-        message = get_message(account_id, msg['id'], format='full')
-        if message:
-            parsed = parse_message(message)
-            emails.append(parsed)
 
-    return emails
+def archive_message(account_id: str, message_id: str) -> dict:
+    """Archive a message by removing INBOX label"""
+    service = get_gmail_service(account_id)
+
+    try:
+        result = service.users().messages().modify(
+            userId='me',
+            id=message_id,
+            body={'removeLabelIds': ['INBOX']}
+        ).execute()
+        return result
+    except HttpError as error:
+        logger.error("Error archiving message: %s", error)
+        raise
+
+
+def get_or_create_label(account_id: str, label_name: str) -> str:
+    """Get existing label ID or create a new label"""
+    service = get_gmail_service(account_id)
+
+    try:
+        # List all labels
+        labels = service.users().labels().list(userId='me').execute()
+        for label in labels.get('labels', []):
+            if label['name'] == label_name:
+                return label['id']
+
+        # Label doesn't exist, create it
+        label = service.users().labels().create(
+            userId='me',
+            body={'name': label_name, 'labelListVisibility': 'labelShow', 'messageListVisibility': 'show'}
+        ).execute()
+        return label['id']
+    except HttpError as error:
+        logger.error("Error getting/creating label %s: %s", label_name, error)
+        raise
+
+
+def add_labels(account_id: str, message_id: str, label_names: list[str]) -> dict:
+    """Add labels to a message (creates labels if they don't exist)"""
+    service = get_gmail_service(account_id)
+
+    try:
+        # Get or create label IDs
+        label_ids = [get_or_create_label(account_id, name) for name in label_names]
+
+        result = service.users().messages().modify(
+            userId='me',
+            id=message_id,
+            body={'addLabelIds': label_ids}
+        ).execute()
+        return result
+    except HttpError as error:
+        logger.error("Error adding labels: %s", error)
+        raise

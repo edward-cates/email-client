@@ -5,7 +5,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-from .config import CREDENTIALS_FILE, REDIRECT_URI, SCOPES, TOKENS_DIR
+from .config import get_credentials_file, REDIRECT_URI, SCOPES, TOKENS_DIR
 
 
 def get_token_path(account_id: str) -> Path:
@@ -45,14 +45,15 @@ def get_authorization_url(account_id: str) -> tuple[str, str]:
     Start OAuth flow and return authorization URL and state
     Returns: (authorization_url, state)
     """
-    if not CREDENTIALS_FILE.exists():
+    credentials_file = get_credentials_file(account_id)
+    if not credentials_file:
         raise FileNotFoundError(
-            f"Credentials file not found at {CREDENTIALS_FILE}. "
-            "Please download credentials.json from Google Cloud Console."
+            f"Credentials file not found for {account_id}. "
+            f"Please add credentials-{account_id.replace('account', '')}.json to src/gmail/credentials/"
         )
 
     flow = InstalledAppFlow.from_client_secrets_file(
-        str(CREDENTIALS_FILE), SCOPES
+        str(credentials_file), SCOPES
     )
     flow.redirect_uri = REDIRECT_URI
 
@@ -73,11 +74,13 @@ def complete_authorization(code: str, state: str) -> Credentials:
     Complete OAuth flow with authorization code
     Returns: Credentials object
     """
-    if not CREDENTIALS_FILE.exists():
-        raise FileNotFoundError("Credentials file not found")
+    account_id = state
+    credentials_file = get_credentials_file(account_id)
+    if not credentials_file:
+        raise FileNotFoundError(f"Credentials file not found for {account_id}")
 
     flow = InstalledAppFlow.from_client_secrets_file(
-        str(CREDENTIALS_FILE), SCOPES
+        str(credentials_file), SCOPES
     )
     flow.redirect_uri = REDIRECT_URI
 
@@ -85,7 +88,6 @@ def complete_authorization(code: str, state: str) -> Credentials:
     creds = flow.credentials
 
     # Save credentials using state as account_id
-    account_id = state
     save_credentials(account_id, creds)
 
     return creds

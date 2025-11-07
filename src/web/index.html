@@ -34,47 +34,6 @@
             color: #5f6368;
         }
 
-        .account-selector {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .account-btn {
-            padding: 6px 12px;
-            border: 1px solid #dadce0;
-            border-radius: 16px;
-            background: #fff;
-            cursor: pointer;
-            font-size: 13px;
-            color: #5f6368;
-        }
-
-        .account-btn.active {
-            background: #e8f0fe;
-            color: #1a73e8;
-            border-color: #1a73e8;
-        }
-
-        .search-box {
-            flex: 1;
-            max-width: 720px;
-            background-color: #f1f3f4;
-            border-radius: 24px;
-            padding: 8px 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .search-box input {
-            flex: 1;
-            border: none;
-            background: transparent;
-            outline: none;
-            font-size: 14px;
-        }
-
         .main-container {
             flex: 1;
             display: flex;
@@ -88,38 +47,64 @@
             padding: 8px;
         }
 
-        .compose-btn {
-            background-color: #c2e7ff;
-            border: none;
-            border-radius: 24px;
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            width: 100%;
-            margin-bottom: 16px;
-            transition: box-shadow 0.2s;
-        }
-
-        .compose-btn:hover {
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-        }
-
         .auth-section {
             padding: 16px;
             margin-bottom: 16px;
             border-bottom: 1px solid #e0e0e0;
         }
 
+        .auth-section-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #202124;
+            margin-bottom: 12px;
+        }
+
+        .account-item {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        .account-item.authenticated {
+            border-color: #137333;
+            background: #e6f4ea;
+        }
+
+        .account-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .account-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: #202124;
+        }
+
+        .account-email {
+            font-size: 12px;
+            color: #5f6368;
+            margin-bottom: 8px;
+        }
+
+        .account-email.authenticated {
+            color: #137333;
+        }
+
         .auth-btn {
             width: 100%;
-            padding: 10px 16px;
+            padding: 6px 12px;
             background-color: #1a73e8;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 500;
         }
 
@@ -127,34 +112,19 @@
             background-color: #1557b0;
         }
 
+        .auth-btn.authenticated {
+            background-color: #137333;
+            cursor: default;
+        }
+
         .auth-status {
-            font-size: 12px;
+            font-size: 11px;
             color: #5f6368;
-            margin-top: 8px;
+            margin-top: 4px;
         }
 
         .auth-status.authenticated {
             color: #137333;
-        }
-
-        .nav-item {
-            padding: 8px 12px;
-            border-radius: 0 24px 24px 0;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: #202124;
-            font-size: 14px;
-        }
-
-        .nav-item:hover {
-            background-color: #f1f3f4;
-        }
-
-        .nav-item.active {
-            background-color: #feefc3;
-            font-weight: 500;
         }
 
         .content-area {
@@ -164,35 +134,79 @@
             background-color: #fff;
         }
 
-        .toolbar {
-            padding: 8px 16px;
+        .email-header {
+            padding: 12px 16px;
             border-bottom: 1px solid #e0e0e0;
+            background-color: #fff;
             display: flex;
             align-items: center;
-            gap: 16px;
+            justify-content: space-between;
         }
 
-        .toolbar button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 4px;
+        .email-count {
+            font-size: 14px;
+            color: #5f6368;
         }
 
-        .toolbar button:hover {
-            background-color: #f1f3f4;
+        .progress-container {
+            padding: 8px 16px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #1a73e8;
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: #5f6368;
+            margin-top: 4px;
         }
 
         .email-list {
             flex: 1;
             overflow-y: auto;
+            position: relative;
+        }
+
+        .loading-more {
+            padding: 16px;
+            text-align: center;
+            color: #5f6368;
+            font-size: 13px;
+        }
+
+        .loading-more-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e0e0e0;
+            border-top-color: #1a73e8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         .email-item {
             padding: 12px 16px;
             border-bottom: 1px solid #f1f3f4;
-            cursor: pointer;
             display: flex;
             align-items: center;
             gap: 16px;
@@ -202,13 +216,13 @@
             background-color: #f8f9fa;
         }
 
-        .email-item.unread {
-            font-weight: 500;
-        }
-
-        .email-checkbox {
-            width: 20px;
-            height: 20px;
+        .email-account {
+            min-width: 100px;
+            font-size: 11px;
+            color: #5f6368;
+            padding: 2px 6px;
+            background: #f1f3f4;
+            border-radius: 4px;
         }
 
         .email-sender {
@@ -230,11 +244,43 @@
             white-space: nowrap;
         }
 
-        .email-date {
-            min-width: 100px;
-            text-align: right;
-            font-size: 13px;
+        .email-labels {
+            min-width: 150px;
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .email-label {
+            padding: 2px 8px;
+            background-color: #e8f0fe;
+            border-radius: 12px;
+            font-size: 11px;
+            color: #1a73e8;
+        }
+
+        .email-actions {
+            display: flex;
+            gap: 8px;
+            min-width: 120px;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 12px;
             color: #5f6368;
+        }
+
+        .action-btn:hover {
+            background-color: #f1f3f4;
+        }
+
+        .action-btn.archive {
+            color: #ea4335;
         }
 
         .empty-state {
@@ -270,51 +316,27 @@
 </head>
 <body>
     <div class="header">
-        <div class="logo">Gmail</div>
-        <div class="account-selector">
-            <button class="account-btn active" data-account="account1">Account 1</button>
-            <button class="account-btn" data-account="account2">Account 2</button>
-        </div>
-        <div class="search-box">
-            <span>🔍</span>
-            <input type="text" placeholder="Search mail">
-        </div>
+        <div class="logo">Gmail - Merged Inbox</div>
     </div>
 
     <div class="main-container">
         <div class="sidebar">
-            <button class="compose-btn">✏️ Compose</button>
             <div class="auth-section">
-                <button class="auth-btn" id="authBtn">Sign in with Google</button>
-                <div class="auth-status" id="authStatus"></div>
-            </div>
-            <div class="nav-item active">
-                <span>📥</span>
-                <span>Inbox</span>
-            </div>
-            <div class="nav-item">
-                <span>⭐</span>
-                <span>Starred</span>
-            </div>
-            <div class="nav-item">
-                <span>⏰</span>
-                <span>Snoozed</span>
-            </div>
-            <div class="nav-item">
-                <span>📤</span>
-                <span>Sent</span>
-            </div>
-            <div class="nav-item">
-                <span>📝</span>
-                <span>Drafts</span>
+                <div class="auth-section-title">Accounts</div>
+                <div id="accountsList">Loading accounts...</div>
             </div>
         </div>
 
         <div class="content-area">
-            <div class="toolbar">
-                <button onclick="refreshEmails()">🔄</button>
+            <div class="email-header">
+                <div class="email-count" id="emailCount">Loading...</div>
             </div>
-
+            <div class="progress-container" id="progressContainer" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+                </div>
+                <div class="progress-text" id="progressText">Loading emails...</div>
+            </div>
             <div class="email-list" id="emailList">
                 <div class="loading">Loading...</div>
             </div>
@@ -322,137 +344,414 @@
     </div>
 
     <script>
-        let currentAccount = 'account1';
+        let accounts = [];
+        let emailAccountMap = {}; // Map message_id to account_id
+        let allEmails = []; // Store all loaded emails
+        let nextPageToken = null;
+        let totalEmailCount = 0;
+        let isLoading = false;
+        let hasMoreEmails = true;
+        const BATCH_SIZE = 20; // Number of emails to load per batch
 
-        // Check URL params for auth callback
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('auth_success') === 'true') {
             setTimeout(() => {
-                checkAuthStatus();
-                loadEmails();
+                loadAccounts();
+                initializeEmails();
             }, 500);
         }
         if (urlParams.get('auth_error')) {
             showError('Authentication failed: ' + urlParams.get('auth_error'));
         }
 
-        // Account selector
-        document.querySelectorAll('.account-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.account-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentAccount = btn.dataset.account;
-                checkAuthStatus();
-                loadEmails();
-            });
-        });
+        loadAccounts();
+        initializeEmails();
 
-        // Auth button
-        document.getElementById('authBtn').addEventListener('click', startAuth);
+        // Set up infinite scroll
+        const emailList = document.getElementById('emailList');
+        emailList.addEventListener('scroll', handleScroll);
 
-        // Initial load
-        checkAuthStatus();
-        loadEmails();
-
-        async function checkAuthStatus() {
+        async function loadAccounts() {
             try {
-                const response = await fetch(`/api/auth/status?account_id=${currentAccount}`);
+                const response = await fetch('/api/accounts');
                 const data = await response.json();
-                
-                const authBtn = document.getElementById('authBtn');
-                const authStatus = document.getElementById('authStatus');
-                
-                if (data.authenticated) {
-                    authBtn.textContent = '✓ Authenticated';
-                    authBtn.style.backgroundColor = '#137333';
-                    authStatus.textContent = data.email || 'Authenticated';
-                    authStatus.classList.add('authenticated');
-                    authBtn.onclick = null;
-                } else {
-                    authBtn.textContent = 'Sign in with Google';
-                    authBtn.style.backgroundColor = '#1a73e8';
-                    authStatus.textContent = 'Not authenticated';
-                    authStatus.classList.remove('authenticated');
-                    authBtn.onclick = startAuth;
-                }
+                accounts = data.accounts;
+                renderAccounts();
             } catch (error) {
-                console.error('Error checking auth status:', error);
+                console.error('Error loading accounts:', error);
+                document.getElementById('accountsList').innerHTML = '<div class="error">Error loading accounts</div>';
             }
         }
 
-        async function startAuth() {
+        function renderAccounts() {
+            const accountsList = document.getElementById('accountsList');
+            if (accounts.length === 0) {
+                accountsList.innerHTML = '<div style="color: #5f6368; font-size: 12px;">No accounts found. Add credentials-1.json through credentials-9.json to src/gmail/credentials/</div>';
+                return;
+            }
+
+            accountsList.innerHTML = accounts.map(account => {
+                const accountNum = account.account_id.replace('account', '');
+                if (account.authenticated) {
+                    return `
+                        <div class="account-item authenticated">
+                            <div class="account-header">
+                                <div class="account-name">Account ${accountNum}</div>
+                                <span style="color: #137333; font-size: 12px;">✓</span>
+                            </div>
+                            <div class="account-email authenticated">${escapeHtml(account.email || 'Authenticated')}</div>
+                            <div class="auth-status authenticated">Authenticated</div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="account-item">
+                            <div class="account-header">
+                                <div class="account-name">Account ${accountNum}</div>
+                            </div>
+                            <div class="account-email">Not authenticated</div>
+                            <button class="auth-btn" onclick="startAuth('${escapeHtml(account.account_id)}')">Sign in</button>
+                        </div>
+                    `;
+                }
+            }).join('');
+        }
+
+        async function startAuth(accountId) {
             try {
-                const response = await fetch(`/api/auth/start?account_id=${currentAccount}`);
+                const response = await fetch(`/api/auth/start?account_id=${accountId}`);
                 const data = await response.json();
-                
-                // Open auth URL in same window
                 window.location.href = data.authorization_url;
             } catch (error) {
                 showError('Failed to start authentication: ' + error.message);
             }
         }
 
-        async function loadEmails() {
+        async function initializeEmails() {
+            allEmails = [];
+            nextPageToken = null;
+            hasMoreEmails = true;
+            
             const emailList = document.getElementById('emailList');
             emailList.innerHTML = '<div class="loading">Loading emails...</div>';
+            
+            // Load total count first
+            try {
+                const countResponse = await fetch('/api/emails/total-count');
+                if (countResponse.ok) {
+                    const countData = await countResponse.json();
+                    totalEmailCount = countData.total_count;
+                    updateEmailCount(0);
+                }
+            } catch (error) {
+                console.error('Error loading email count:', error);
+            }
+            
+            // Load initial batch
+            await loadMoreEmails(true);
+        }
+
+        async function loadMoreEmails(isInitial = false) {
+            if (isLoading || (!hasMoreEmails && !isInitial)) {
+                return;
+            }
+
+            isLoading = true;
+            const emailList = document.getElementById('emailList');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+
+            // Show progress on initial load
+            if (isInitial) {
+                progressContainer.style.display = 'block';
+                progressFill.style.width = '0%';
+                progressText.textContent = 'Loading emails...';
+                allEmails = []; // Clear existing emails on initial load
+            }
 
             try {
-                const response = await fetch(`/api/emails?account_id=${currentAccount}&max_results=50`);
-                
-                if (response.status === 401) {
-                    emailList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><div>Please sign in to view emails</div></div>';
-                    return;
+                // Use streaming endpoint for initial load, regular endpoint for pagination
+                if (isInitial) {
+                    await loadEmailsStream();
+                } else {
+                    await loadEmailsRegular();
                 }
 
-                if (!response.ok) {
-                    throw new Error('Failed to load emails');
+                // Render emails
+                renderEmails();
+
+                // Hide progress after initial load completes
+                if (isInitial) {
+                    if (!hasMoreEmails) {
+                        setTimeout(() => {
+                            progressContainer.style.display = 'none';
+                        }, 500);
+                    } else {
+                        progressContainer.style.display = 'block';
+                    }
                 }
 
-                const data = await response.json();
-                
-                if (data.emails.length === 0) {
-                    emailList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>No emails found</div></div>';
-                    return;
-                }
-
-                emailList.innerHTML = data.emails.map(email => {
-                    const date = formatDate(email.date);
-                    const isUnread = !email.labels.includes('READ');
-                    return `
-                        <div class="email-item ${isUnread ? 'unread' : ''}">
-                            <input type="checkbox" class="email-checkbox">
-                            <div class="email-sender">${escapeHtml(parseSender(email.from))}</div>
-                            <div class="email-subject">${escapeHtml(email.subject)}</div>
-                            <div class="email-preview">${escapeHtml(email.snippet)}</div>
-                            <div class="email-date">${date}</div>
-                        </div>
-                    `;
-                }).join('');
             } catch (error) {
-                emailList.innerHTML = `<div class="error">Error loading emails: ${error.message}</div>`;
+                console.error('Error loading emails:', error);
+                if (isInitial) {
+                    emailList.innerHTML = `<div class="error">Error loading emails: ${error.message}</div>`;
+                } else {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error';
+                    errorDiv.textContent = `Error loading more emails: ${error.message}`;
+                    emailList.appendChild(errorDiv);
+                }
+            } finally {
+                isLoading = false;
             }
         }
 
-        function refreshEmails() {
-            loadEmails();
+        async function loadEmailsStream() {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            return new Promise((resolve, reject) => {
+                let url = `/api/emails/merged/stream?max_results=${BATCH_SIZE}`;
+                if (nextPageToken) {
+                    url += `&page_token=${encodeURIComponent(nextPageToken)}`;
+                }
+
+                const eventSource = new EventSource(url);
+                const newEmails = [];
+                let streamComplete = false;
+
+                eventSource.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        if (data.type === 'progress') {
+                            // Update progress bar
+                            const progress = data.progress_percent || 0;
+                            progressFill.style.width = progress + '%';
+                            progressText.textContent = `Loading ${data.overall_current} of ${data.overall_total} emails from ${data.account_id}...`;
+                        } else if (data.type === 'email') {
+                            // Add email as it arrives
+                            const email = data.email;
+                            emailAccountMap[email.id] = email.account_id;
+                            
+                            // Check for duplicates
+                            if (!allEmails.find(e => e.id === email.id)) {
+                                allEmails.push(email);
+                                newEmails.push(email);
+                            }
+                            
+                            // Render incrementally for better UX
+                            if (newEmails.length % 5 === 0) {
+                                renderEmails();
+                            }
+                        } else if (data.type === 'account_start') {
+                            progressText.textContent = `Fetching from ${data.account_id} (${data.account_num}/${data.total_accounts})...`;
+                        } else if (data.type === 'account_complete') {
+                            progressText.textContent = `Completed ${data.account_id}: ${data.count} emails`;
+                        } else if (data.type === 'complete') {
+                            streamComplete = true;
+                            nextPageToken = data.next_page_token || null;
+                            hasMoreEmails = !!nextPageToken;
+                            
+                            // Sort emails by date (newest first)
+                            allEmails.sort((a, b) => {
+                                const dateA = parseInt(a.internalDate || 0);
+                                const dateB = parseInt(b.internalDate || 0);
+                                return dateB - dateA;
+                            });
+                            
+                            const loadedCount = allEmails.length;
+                            if (totalEmailCount > 0) {
+                                const progress = Math.min((loadedCount / totalEmailCount) * 100, 100);
+                                progressFill.style.width = progress + '%';
+                                progressText.textContent = `Loaded ${loadedCount} of ${totalEmailCount} emails`;
+                            } else {
+                                progressText.textContent = `Loaded ${loadedCount} emails`;
+                            }
+                            
+                            eventSource.close();
+                            resolve();
+                        } else if (data.type === 'error') {
+                            eventSource.close();
+                            reject(new Error(data.message || 'Unknown error'));
+                        }
+                    } catch (error) {
+                        console.error('Error parsing stream data:', error);
+                    }
+                };
+
+                eventSource.onerror = (error) => {
+                    eventSource.close();
+                    if (!streamComplete) {
+                        reject(new Error('Stream connection error'));
+                    }
+                };
+
+                // Timeout after 60 seconds
+                setTimeout(() => {
+                    if (!streamComplete) {
+                        eventSource.close();
+                        reject(new Error('Stream timeout'));
+                    }
+                }, 60000);
+            });
         }
 
-        function formatDate(dateString) {
-            if (!dateString) return '';
-            const date = new Date(dateString);
-            const now = new Date();
-            const diff = now - date;
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        async function loadEmailsRegular() {
+            let url = `/api/emails/merged?max_results=${BATCH_SIZE}`;
+            if (nextPageToken) {
+                url += `&page_token=${encodeURIComponent(nextPageToken)}`;
+            }
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error('Failed to load emails');
+            }
+
+            const data = await response.json();
+            nextPageToken = data.next_page_token || null;
+            hasMoreEmails = !!nextPageToken;
+
+            const newEmails = data.emails || [];
+            newEmails.forEach(email => {
+                emailAccountMap[email.id] = email.account_id;
+            });
+
+            const existingIds = new Set(allEmails.map(e => e.id));
+            const uniqueNewEmails = newEmails.filter(e => !existingIds.has(e.id));
+            allEmails.push(...uniqueNewEmails);
+        }
+
+        function renderEmails() {
+            const emailList = document.getElementById('emailList');
             
-            if (days === 0) return 'Today';
-            if (days === 1) return 'Yesterday';
-            if (days < 7) return `${days} days ago`;
-            
-            return date.toLocaleDateString();
+            if (allEmails.length === 0) {
+                const hasAuthenticated = accounts.some(a => a.authenticated);
+                if (!hasAuthenticated) {
+                    emailList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><div>Please sign in to at least one account to view emails</div></div>';
+                } else {
+                    emailList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>No emails found</div></div>';
+                }
+                updateEmailCount(0);
+                return;
+            }
+
+            const emailsHtml = allEmails.map(email => {
+                const labelsHtml = email.labels
+                    .filter(label => label !== 'INBOX' && label !== 'UNREAD' && label !== 'READ')
+                    .map(label => `<span class="email-label">${escapeHtml(label)}</span>`)
+                    .join('');
+
+                const accountNum = email.account_id.replace('account', '');
+                const accountEmail = accounts.find(a => a.account_id === email.account_id)?.email || `Account ${accountNum}`;
+
+                return `
+                    <div class="email-item" data-message-id="${escapeHtml(email.id)}">
+                        <div class="email-account" title="${escapeHtml(accountEmail)}">${accountNum}</div>
+                        <div class="email-sender">${escapeHtml(parseSender(email.from))}</div>
+                        <div class="email-subject">${escapeHtml(email.subject)}</div>
+                        <div class="email-preview">${escapeHtml(email.snippet)}</div>
+                        <div class="email-labels">${labelsHtml || '<span style="color: #999;">No labels</span>'}</div>
+                        <div class="email-actions">
+                            <button class="action-btn archive" onclick="archiveEmail('${escapeHtml(email.id)}')">Archive</button>
+                            <button class="action-btn" onclick="showAddLabel('${escapeHtml(email.id)}')">Add Label</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Add loading indicator if there are more emails
+            let loadingMoreHtml = '';
+            if (hasMoreEmails && isLoading) {
+                loadingMoreHtml = '<div class="loading-more"><span class="loading-more-spinner"></span>Loading more emails...</div>';
+            } else if (hasMoreEmails) {
+                loadingMoreHtml = '<div class="loading-more" id="loadMoreTrigger"></div>';
+            }
+
+            emailList.innerHTML = emailsHtml + loadingMoreHtml;
+            updateEmailCount(allEmails.length);
+        }
+
+        function updateEmailCount(count) {
+            const emailCountEl = document.getElementById('emailCount');
+            if (totalEmailCount > 0) {
+                emailCountEl.textContent = `Showing ${count} of ${totalEmailCount} emails`;
+            } else {
+                emailCountEl.textContent = count > 0 ? `${count} emails` : 'No emails';
+            }
+        }
+
+        function handleScroll() {
+            const emailList = document.getElementById('emailList');
+            const scrollTop = emailList.scrollTop;
+            const scrollHeight = emailList.scrollHeight;
+            const clientHeight = emailList.clientHeight;
+
+            // Load more when user scrolls to within 200px of the bottom
+            if (scrollHeight - scrollTop - clientHeight < 200) {
+                if (hasMoreEmails && !isLoading) {
+                    loadMoreEmails(false);
+                }
+            }
+        }
+
+        async function archiveEmail(messageId) {
+            const accountId = emailAccountMap[messageId];
+            if (!accountId) {
+                alert('Error: Could not determine account for this email');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/emails/${messageId}/archive?account_id=${accountId}`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to archive email');
+                }
+
+                // Remove archived email from the list
+                allEmails = allEmails.filter(e => e.id !== messageId);
+                renderEmails();
+            } catch (error) {
+                alert('Error archiving email: ' + error.message);
+            }
+        }
+
+        async function showAddLabel(messageId) {
+            const accountId = emailAccountMap[messageId];
+            if (!accountId) {
+                alert('Error: Could not determine account for this email');
+                return;
+            }
+
+            const labelName = prompt('Enter label name:');
+            if (!labelName) return;
+
+            try {
+                const response = await fetch(`/api/emails/${messageId}/labels?account_id=${accountId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ label_names: [labelName] })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to add label');
+                }
+
+                // Reload emails to get updated labels
+                initializeEmails();
+            } catch (error) {
+                alert('Error adding label: ' + error.message);
+            }
         }
 
         function parseSender(from) {
-            // Extract name or email from "Name <email@example.com>" format
             const match = from.match(/^(.+?)\s*<(.+)>$/);
             if (match) {
                 return match[1].trim() || match[2];
