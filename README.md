@@ -1,17 +1,19 @@
 # email-client
 An email client to classify my emails where everything runs locally.
 
-## Prereqs
+## Running it
 
 ```
 pip install -r requirements.txt
+make up # Run the application
+make lint # Lint the code
 ```
 
-### Gmail
+## Gmail Auth
 
 See [Gmail API Setup](src/gmail/README.md) for authentication setup instructions.
 
-## Multi-Account Support
+### Multi-Account Support
 
 This email client supports multiple Gmail accounts (up to 9) in a single merged inbox. To add accounts:
 
@@ -27,13 +29,4 @@ This email client supports multiple Gmail accounts (up to 9) in a single merged 
 4. Once authenticated, emails from all accounts will be merged into a single inbox, sorted by date (newest first).
 
 5. Each email shows which account it belongs to, and actions (archive, add labels) are performed on the correct account automatically.
-
-## Running
-
-### Make
-
-```
-make up # Run the application
-make lint # Lint the code
-```
 
