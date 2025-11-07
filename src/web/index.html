@@ -388,6 +388,29 @@
             border-radius: 3px;
             margin-left: 8px;
             vertical-align: middle;
+            transition: background-color 0.2s, opacity 0.2s;
+        }
+
+        .marketing-badge:hover:not(.loading) {
+            background-color: #1557b0;
+        }
+
+        .marketing-badge.loading {
+            opacity: 0.6;
+            cursor: wait;
+            pointer-events: none;
+            min-width: fit-content;
+            white-space: nowrap;
+        }
+
+        .marketing-badge.add-button {
+            opacity: 0.5;
+            border-style: dashed;
+        }
+
+        .marketing-badge.add-button:hover:not(.loading) {
+            opacity: 0.8;
+            background-color: #1a73e8;
         }
 
         .marketing-badge .delete-icon {
@@ -397,10 +420,33 @@
             font-weight: bold;
             font-size: 14px;
             line-height: 1;
+            transition: opacity 0.2s, transform 0.2s;
         }
 
         .marketing-badge .delete-icon:hover {
             opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .marketing-badge.loading .delete-icon {
+            pointer-events: none;
+        }
+
+        .marketing-badge .loading-spinner {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-left: 4px;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         .empty-state {
@@ -1325,8 +1371,8 @@
                             <div class="email-sender" title="${escapeHtml(sender)}">
                                 ${escapeHtml(sender)}
                                 ${hasMarketingLabel 
-                                    ? `<span class="marketing-badge" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Remove Marketing label">×</span></span>` 
-                                    : `<span class="marketing-badge" style="cursor: pointer; opacity: 0.5; border-style: dashed;" onclick="addMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Click to add Marketing label">+ Marketing</span>`}
+                                    ? `<span class="marketing-badge" id="badge-${escapeHtml(email.id)}" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Remove Marketing label">×</span></span>` 
+                                    : `<span class="marketing-badge add-button" id="badge-${escapeHtml(email.id)}" style="cursor: pointer; display: inline-flex; align-items: center;" onclick="addMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Click to add Marketing label">+ Marketing</span>`}
                             </div>
                             <div class="email-time">${escapeHtml(timeSent)}</div>
                         </div>
@@ -1545,8 +1591,8 @@
                     <div class="modal-meta-row">
                         <span class="modal-meta-label">Labels:</span>
                         ${hasMarketingLabel 
-                            ? '<span class="marketing-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabel(event)" title="Remove Marketing label">×</span></span>' 
-                            : '<span class="marketing-badge" style="cursor: pointer; margin-left: 8px; opacity: 0.5; border-style: dashed;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">+ Marketing</span>'}
+                            ? '<span class="marketing-badge" id="modal-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabel(event)" title="Remove Marketing label">×</span></span>' 
+                            : '<span class="marketing-badge add-button" id="modal-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">+ Marketing</span>'}
                     </div>
                 `;
                 modalMeta.innerHTML = metaHtml;
@@ -1612,6 +1658,15 @@
                 return; // Already has label
             }
 
+            const badge = document.getElementById('modal-badge');
+            if (badge) {
+                badge.classList.add('loading');
+                badge.style.display = 'inline-flex';
+                badge.style.alignItems = 'center';
+                badge.style.gap = '4px';
+                badge.innerHTML = '+ Marketing<span class="loading-spinner"></span>';
+            }
+
             try {
                 const url = `/api/emails/${encodeURIComponent(messageId)}/labels?account_id=${encodeURIComponent(accountId)}`;
                 
@@ -1643,6 +1698,11 @@
             } catch (error) {
                 console.error('Error adding Marketing label:', error);
                 alert('Error adding Marketing label: ' + error.message);
+                // Restore badge on error
+                if (badge) {
+                    badge.classList.remove('loading');
+                    refreshModalBadge();
+                }
             }
         }
 
@@ -1661,6 +1721,12 @@
 
             if (!hasMarketingLabel) {
                 return; // Doesn't have label
+            }
+
+            const badge = document.getElementById('modal-badge');
+            if (badge) {
+                badge.classList.add('loading');
+                badge.innerHTML = 'Marketing<span class="loading-spinner"></span>';
             }
 
             try {
@@ -1694,6 +1760,11 @@
             } catch (error) {
                 console.error('Error removing Marketing label:', error);
                 alert('Error removing Marketing label: ' + error.message);
+                // Restore badge on error
+                if (badge) {
+                    badge.classList.remove('loading');
+                    refreshModalBadge();
+                }
             }
         }
 
@@ -1716,6 +1787,15 @@
 
             if (hasMarketingLabel) {
                 return; // Already has label
+            }
+
+            const badge = document.getElementById(`badge-${messageId}`);
+            if (badge) {
+                badge.classList.add('loading');
+                badge.style.display = 'inline-flex';
+                badge.style.alignItems = 'center';
+                badge.style.gap = '4px';
+                badge.innerHTML = '+ Marketing<span class="loading-spinner"></span>';
             }
 
             try {
@@ -1748,6 +1828,11 @@
             } catch (error) {
                 console.error('Error adding Marketing label:', error);
                 alert('Error adding Marketing label: ' + error.message);
+                // Restore badge on error
+                if (badge) {
+                    badge.classList.remove('loading');
+                    renderEmails();
+                }
             }
         }
 
@@ -1770,6 +1855,12 @@
 
             if (!hasMarketingLabel) {
                 return; // Doesn't have label
+            }
+
+            const badge = document.getElementById(`badge-${messageId}`);
+            if (badge) {
+                badge.classList.add('loading');
+                badge.innerHTML = 'Marketing<span class="loading-spinner"></span>';
             }
 
             try {
@@ -1802,6 +1893,11 @@
             } catch (error) {
                 console.error('Error removing Marketing label:', error);
                 alert('Error removing Marketing label: ' + error.message);
+                // Restore badge on error
+                if (badge) {
+                    badge.classList.remove('loading');
+                    renderEmails();
+                }
             }
         }
 
@@ -1826,8 +1922,8 @@
                 <div class="modal-meta-row">
                     <span class="modal-meta-label">Labels:</span>
                     ${updatedHasMarketingLabel 
-                        ? '<span class="marketing-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabel(event)" title="Remove Marketing label">×</span></span>' 
-                        : '<span class="marketing-badge" style="cursor: pointer; margin-left: 8px; opacity: 0.5; border-style: dashed;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">+ Marketing</span>'}
+                        ? '<span class="marketing-badge" id="modal-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabel(event)" title="Remove Marketing label">×</span></span>' 
+                        : '<span class="marketing-badge add-button" id="modal-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">+ Marketing</span>'}
                 </div>
             `;
             modalMeta.innerHTML = metaHtml;
