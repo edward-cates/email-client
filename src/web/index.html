@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background-color: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 400;
+            color: #5f6368;
+        }
+
+        .search-box {
+            flex: 1;
+            max-width: 720px;
+            background-color: #f1f3f4;
+            border-radius: 24px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .search-box input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 256px;
+            background-color: #fff;
+            border-right: 1px solid #e0e0e0;
+            padding: 8px;
+        }
+
+        .compose-btn {
+            background-color: #c2e7ff;
+            border: none;
+            border-radius: 24px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 16px;
+            transition: box-shadow 0.2s;
+        }
+
+        .compose-btn:hover {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
+        .nav-item {
+            padding: 8px 12px;
+            border-radius: 0 24px 24px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #202124;
+            font-size: 14px;
+        }
+
+        .nav-item:hover {
+            background-color: #f1f3f4;
+        }
+
+        .nav-item.active {
+            background-color: #feefc3;
+            font-weight: 500;
+        }
+
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+        }
+
+        .toolbar {
+            padding: 8px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .toolbar button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .toolbar button:hover {
+            background-color: #f1f3f4;
+        }
+
+        .email-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .email-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f3f4;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .email-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .email-item.unread {
+            font-weight: 500;
+        }
+
+        .email-checkbox {
+            width: 20px;
+            height: 20px;
+        }
+
+        .email-sender {
+            min-width: 200px;
+            font-size: 14px;
+        }
+
+        .email-subject {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .email-preview {
+            flex: 1;
+            color: #5f6368;
+            font-size: 13px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .email-date {
+            min-width: 100px;
+            text-align: right;
+            font-size: 13px;
+            color: #5f6368;
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #5f6368;
+        }
+
+        .empty-state-icon {
+            font-size: 120px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Gmail</div>
+        <div class="search-box">
+            <span>🔍</span>
+            <input type="text" placeholder="Search mail">
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <button class="compose-btn">✏️ Compose</button>
+            <div class="nav-item active">
+                <span>📥</span>
+                <span>Inbox</span>
+            </div>
+            <div class="nav-item">
+                <span>⭐</span>
+                <span>Starred</span>
+            </div>
+            <div class="nav-item">
+                <span>⏰</span>
+                <span>Snoozed</span>
+            </div>
+            <div class="nav-item">
+                <span>📤</span>
+                <span>Sent</span>
+            </div>
+            <div class="nav-item">
+                <span>📝</span>
+                <span>Drafts</span>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="toolbar">
+                <button>☑️</button>
+                <button>🔄</button>
+                <button>🏷️</button>
+                <button>🗑️</button>
+            </div>
+
+            <div class="email-list">
+                <div class="email-item unread">
+                    <input type="checkbox" class="email-checkbox">
+                    <div class="email-sender">John Doe</div>
+                    <div class="email-subject">Welcome to Gmail Client</div>
+                    <div class="email-preview">This is a sample email preview text...</div>
+                    <div class="email-date">Today</div>
+                </div>
+                <div class="email-item">
+                    <input type="checkbox" class="email-checkbox">
+                    <div class="email-sender">Jane Smith</div>
+                    <div class="email-subject">Meeting Reminder</div>
+                    <div class="email-preview">Don't forget about our meeting tomorrow...</div>
+                    <div class="email-date">Yesterday</div>
+                </div>
+                <div class="email-item unread">
+                    <input type="checkbox" class="email-checkbox">
+                    <div class="email-sender">Team Updates</div>
+                    <div class="email-subject">Weekly Newsletter</div>
+                    <div class="email-preview">Here's what happened this week...</div>
+                    <div class="email-date">2 days ago</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
