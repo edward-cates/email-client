@@ -378,9 +378,8 @@
             -webkit-box-orient: vertical;
         }
 
-        .marketing-badge {
+        .label-badge {
             display: inline-block;
-            background-color: #1a73e8;
             color: white;
             font-size: 11px;
             font-weight: 500;
@@ -389,13 +388,46 @@
             margin-left: 8px;
             vertical-align: middle;
             transition: background-color 0.2s, opacity 0.2s;
+            background-color: #5f6368; /* Default fallback color for labels without specific CSS */
         }
 
-        .marketing-badge:hover:not(.loading) {
+        .label-badge:hover:not(.loading) {
+            background-color: #3c4043; /* Default hover color */
+        }
+
+        .label-badge.marketing {
+            background-color: #1a73e8;
+        }
+
+        .label-badge.marketing:hover:not(.loading) {
             background-color: #1557b0;
         }
 
-        .marketing-badge.loading {
+        .label-badge.boring-noti {
+            background-color: #9aa0a6;
+        }
+
+        .label-badge.boring-noti:hover:not(.loading) {
+            background-color: #80868b;
+        }
+
+        .label-badge.event {
+            background-color: #ea4335;
+        }
+
+        .label-badge.event:hover:not(.loading) {
+            background-color: #c5221f;
+        }
+
+        .label-badge.newsletter {
+            background-color: #34a853;
+        }
+
+        .label-badge.newsletter:hover:not(.loading) {
+            background-color: #137333;
+        }
+
+        .label-badge.loading {
             opacity: 0.6;
             cursor: wait;
             pointer-events: none;
@@ -403,17 +435,17 @@
             white-space: nowrap;
         }
 
-        .marketing-badge.add-button {
+        .label-badge.add-button {
             opacity: 0.5;
             border-style: dashed;
         }
 
-        .marketing-badge.add-button:hover:not(.loading) {
+        .label-badge.add-button:hover:not(.loading) {
             opacity: 0.8;
-            background-color: #1a73e8;
+            background-color: #5f6368; /* Override default hover for add-button */
         }
 
-        .marketing-badge .delete-icon {
+        .label-badge .delete-icon {
             margin-left: 4px;
             cursor: pointer;
             opacity: 0.8;
@@ -423,16 +455,16 @@
             transition: opacity 0.2s, transform 0.2s;
         }
 
-        .marketing-badge .delete-icon:hover {
+        .label-badge .delete-icon:hover {
             opacity: 1;
             transform: scale(1.1);
         }
 
-        .marketing-badge.loading .delete-icon {
+        .label-badge.loading .delete-icon {
             pointer-events: none;
         }
 
-        .marketing-badge .loading-spinner {
+        .label-badge .loading-spinner {
             display: inline-block;
             width: 10px;
             height: 10px;
@@ -697,9 +729,13 @@
         const BATCH_SIZE = 20; // Number of emails to load per batch
         let selectedEmails = new Set(); // Set of selected email IDs
 
+        // Label types configuration - loaded from API
+        let LABEL_TYPES = [];
+
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('auth_success') === 'true') {
             setTimeout(async () => {
+                await loadLabels();
                 await loadAccounts();
                 initializeEmails();
             }, 500);
@@ -708,8 +744,9 @@
             showError('Authentication failed: ' + urlParams.get('auth_error'));
         }
 
-        // Load accounts first, then initialize emails
+        // Load labels first, then accounts, then initialize emails
         (async () => {
+            await loadLabels();
             await loadAccounts();
             initializeEmails();
         })();
@@ -717,6 +754,27 @@
         // Set up infinite scroll
         const emailList = document.getElementById('emailList');
         emailList.addEventListener('scroll', handleScroll);
+
+        async function loadLabels() {
+            try {
+                const response = await fetch('/api/labels');
+                const data = await response.json();
+                // Convert css_class to cssClass for frontend compatibility
+                LABEL_TYPES = data.labels.map(label => ({
+                    name: label.name,
+                    cssClass: label.css_class
+                }));
+            } catch (error) {
+                console.error('Error loading labels:', error);
+                // Fallback to default labels
+                LABEL_TYPES = [
+                    { name: 'marketing', cssClass: 'marketing' },
+                    { name: 'boring noti', cssClass: 'boring-noti' },
+                    { name: 'event', cssClass: 'event' },
+                    { name: 'newsletter', cssClass: 'newsletter' }
+                ];
+            }
+        }
 
         async function loadAccounts() {
             try {
@@ -1334,6 +1392,44 @@
             }
         }
 
+        function getLabelCssClass(labelName) {
+            const labelType = LABEL_TYPES.find(lt => lt.name.toLowerCase() === labelName.toLowerCase());
+            return labelType ? labelType.cssClass : 'marketing';
+        }
+
+        function hasLabel(labelNames, labelName) {
+            return labelNames.some(label => label.toLowerCase() === labelName.toLowerCase());
+        }
+
+        function renderLabelBadges(email, prefix = 'badge') {
+            const labelNames = email.label_names || [];
+            const messageId = escapeHtml(email.id);
+            const accountId = escapeHtml(email.account_id || '');
+            
+            return LABEL_TYPES.map(labelType => {
+                const hasLabelValue = hasLabel(labelNames, labelType.name);
+                const badgeId = `${prefix}-${labelType.cssClass}-${messageId}`;
+                const labelDisplayName = labelType.name;
+                const escapedLabelName = escapeHtml(labelType.name);
+                
+                if (prefix === 'modal') {
+                    // Modal badges use addLabel/removeLabel functions
+                    if (hasLabelValue) {
+                        return `<span class="label-badge ${labelType.cssClass}" id="${badgeId}" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addLabel(event, '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">${escapeHtml(labelDisplayName)}<span class="delete-icon" onclick="removeLabel(event, '${escapedLabelName}')" title="Remove ${escapeHtml(labelDisplayName)} label">×</span></span>`;
+                    } else {
+                        return `<span class="label-badge ${labelType.cssClass} add-button" id="${badgeId}" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center;" onclick="addLabel(event, '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">+ ${escapeHtml(labelDisplayName)}</span>`;
+                    }
+                } else {
+                    // List badges use addLabelFromList/removeLabelFromList functions
+                    if (hasLabelValue) {
+                        return `<span class="label-badge ${labelType.cssClass}" id="${badgeId}" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="addLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">${escapeHtml(labelDisplayName)}<span class="delete-icon" onclick="removeLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Remove ${escapeHtml(labelDisplayName)} label">×</span></span>`;
+                    } else {
+                        return `<span class="label-badge ${labelType.cssClass} add-button" id="${badgeId}" style="cursor: pointer; display: inline-flex; align-items: center;" onclick="addLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">+ ${escapeHtml(labelDisplayName)}</span>`;
+                    }
+                }
+            }).join('');
+        }
+
         function renderEmails() {
             const emailList = document.getElementById('emailList');
             
@@ -1355,8 +1451,7 @@
                 const snippet = email.snippet || '';
                 const timeSent = formatDate(email.date || email.internalDate);
                 const isSelected = selectedEmails.has(email.id);
-                const labelNames = email.label_names || [];
-                const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
+                const labelBadges = renderLabelBadges(email, 'badge');
 
                 return `
                     <div class="email-item has-checkbox" 
@@ -1370,9 +1465,7 @@
                         <div class="email-header-row">
                             <div class="email-sender" title="${escapeHtml(sender)}">
                                 ${escapeHtml(sender)}
-                                ${hasMarketingLabel 
-                                    ? `<span class="marketing-badge" id="badge-${escapeHtml(email.id)}" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Remove Marketing label">×</span></span>` 
-                                    : `<span class="marketing-badge add-button" id="badge-${escapeHtml(email.id)}" style="cursor: pointer; display: inline-flex; align-items: center;" onclick="addMarketingLabelFromList(event, '${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')" title="Click to add Marketing label">+ Marketing</span>`}
+                                ${labelBadges}
                             </div>
                             <div class="email-time">${escapeHtml(timeSent)}</div>
                         </div>
@@ -1580,8 +1673,7 @@
                 const to = email.to || '';
                 const cc = email.cc || '';
                 const date = formatDate(email.date || email.internalDate);
-                const labelNames = email.label_names || [];
-                const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
+                const labelBadges = renderLabelBadges(email, 'modal');
                 
                 let metaHtml = `
                     <div class="modal-meta-row"><span class="modal-meta-label">From:</span> ${escapeHtml(from)}</div>
@@ -1590,9 +1682,7 @@
                     <div class="modal-meta-row"><span class="modal-meta-label">Date:</span> ${escapeHtml(date)}</div>
                     <div class="modal-meta-row">
                         <span class="modal-meta-label">Labels:</span>
-                        ${hasMarketingLabel 
-                            ? '<span class="marketing-badge" id="modal-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabel(event)" title="Remove Marketing label">×</span></span>' 
-                            : '<span class="marketing-badge add-button" id="modal-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">+ Marketing</span>'}
+                        ${labelBadges}
                     </div>
                 `;
                 modalMeta.innerHTML = metaHtml;
@@ -1641,7 +1731,7 @@
             }
         }
 
-        async function addMarketingLabel(event) {
+        async function addLabel(event, labelName) {
             if (event) {
                 event.stopPropagation();
             }
@@ -1652,19 +1742,20 @@
             const messageId = currentModalEmail.id;
             const accountId = currentModalEmail.account_id;
             const labelNames = currentModalEmail.label_names || [];
-            const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
+            const hasLabelValue = hasLabel(labelNames, labelName);
 
-            if (hasMarketingLabel) {
+            if (hasLabelValue) {
                 return; // Already has label
             }
 
-            const badge = document.getElementById('modal-badge');
+            const cssClass = getLabelCssClass(labelName);
+            const badge = document.getElementById(`modal-${cssClass}-${escapeHtml(messageId)}`);
             if (badge) {
                 badge.classList.add('loading');
                 badge.style.display = 'inline-flex';
                 badge.style.alignItems = 'center';
                 badge.style.gap = '4px';
-                badge.innerHTML = '+ Marketing<span class="loading-spinner"></span>';
+                badge.innerHTML = `+ ${escapeHtml(labelName)}<span class="loading-spinner"></span>`;
             }
 
             try {
@@ -1675,7 +1766,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ label_names: ['Marketing'] })
+                    body: JSON.stringify({ label_names: [labelName] })
                 });
 
                 if (!response.ok) {
@@ -1684,7 +1775,7 @@
                 }
 
                 // Update the current email data
-                currentModalEmail.label_names = [...labelNames, 'Marketing'];
+                currentModalEmail.label_names = [...labelNames, labelName];
 
                 // Refresh the modal display
                 refreshModalBadge();
@@ -1696,8 +1787,8 @@
                     renderEmails();
                 }
             } catch (error) {
-                console.error('Error adding Marketing label:', error);
-                alert('Error adding Marketing label: ' + error.message);
+                console.error(`Error adding ${labelName} label:`, error);
+                alert(`Error adding ${labelName} label: ` + error.message);
                 // Restore badge on error
                 if (badge) {
                     badge.classList.remove('loading');
@@ -1706,7 +1797,7 @@
             }
         }
 
-        async function removeMarketingLabel(event) {
+        async function removeLabel(event, labelName) {
             if (event) {
                 event.stopPropagation();
             }
@@ -1717,16 +1808,17 @@
             const messageId = currentModalEmail.id;
             const accountId = currentModalEmail.account_id;
             const labelNames = currentModalEmail.label_names || [];
-            const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
+            const hasLabelValue = hasLabel(labelNames, labelName);
 
-            if (!hasMarketingLabel) {
+            if (!hasLabelValue) {
                 return; // Doesn't have label
             }
 
-            const badge = document.getElementById('modal-badge');
+            const cssClass = getLabelCssClass(labelName);
+            const badge = document.getElementById(`modal-${cssClass}-${escapeHtml(messageId)}`);
             if (badge) {
                 badge.classList.add('loading');
-                badge.innerHTML = 'Marketing<span class="loading-spinner"></span>';
+                badge.innerHTML = `${escapeHtml(labelName)}<span class="loading-spinner"></span>`;
             }
 
             try {
@@ -1737,7 +1829,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ label_names: ['Marketing'] })
+                    body: JSON.stringify({ label_names: [labelName] })
                 });
 
                 if (!response.ok) {
@@ -1746,7 +1838,7 @@
                 }
 
                 // Update the current email data
-                currentModalEmail.label_names = labelNames.filter(label => label.toLowerCase() !== 'marketing');
+                currentModalEmail.label_names = labelNames.filter(label => label.toLowerCase() !== labelName.toLowerCase());
 
                 // Refresh the modal display
                 refreshModalBadge();
@@ -1758,8 +1850,8 @@
                     renderEmails();
                 }
             } catch (error) {
-                console.error('Error removing Marketing label:', error);
-                alert('Error removing Marketing label: ' + error.message);
+                console.error(`Error removing ${labelName} label:`, error);
+                alert(`Error removing ${labelName} label: ` + error.message);
                 // Restore badge on error
                 if (badge) {
                     badge.classList.remove('loading');
@@ -1768,7 +1860,7 @@
             }
         }
 
-        async function addMarketingLabelFromList(event, messageId, accountId) {
+        async function addLabelFromList(event, messageId, accountId, labelName) {
             if (event) {
                 event.stopPropagation();
             }
@@ -1783,19 +1875,20 @@
             }
 
             const labelNames = email.label_names || [];
-            const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
+            const hasLabelValue = hasLabel(labelNames, labelName);
 
-            if (hasMarketingLabel) {
+            if (hasLabelValue) {
                 return; // Already has label
             }
 
-            const badge = document.getElementById(`badge-${messageId}`);
+            const cssClass = getLabelCssClass(labelName);
+            const badge = document.getElementById(`badge-${cssClass}-${messageId}`);
             if (badge) {
                 badge.classList.add('loading');
                 badge.style.display = 'inline-flex';
                 badge.style.alignItems = 'center';
                 badge.style.gap = '4px';
-                badge.innerHTML = '+ Marketing<span class="loading-spinner"></span>';
+                badge.innerHTML = `+ ${escapeHtml(labelName)}<span class="loading-spinner"></span>`;
             }
 
             try {
@@ -1806,7 +1899,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ label_names: ['Marketing'] })
+                    body: JSON.stringify({ label_names: [labelName] })
                 });
 
                 if (!response.ok) {
@@ -1815,7 +1908,7 @@
                 }
 
                 // Update the email data
-                email.label_names = [...labelNames, 'Marketing'];
+                email.label_names = [...labelNames, labelName];
 
                 // Refresh the list display
                 renderEmails();
@@ -1826,8 +1919,8 @@
                     refreshModalBadge();
                 }
             } catch (error) {
-                console.error('Error adding Marketing label:', error);
-                alert('Error adding Marketing label: ' + error.message);
+                console.error(`Error adding ${labelName} label:`, error);
+                alert(`Error adding ${labelName} label: ` + error.message);
                 // Restore badge on error
                 if (badge) {
                     badge.classList.remove('loading');
@@ -1836,7 +1929,7 @@
             }
         }
 
-        async function removeMarketingLabelFromList(event, messageId, accountId) {
+        async function removeLabelFromList(event, messageId, accountId, labelName) {
             if (event) {
                 event.stopPropagation();
             }
@@ -1851,16 +1944,17 @@
             }
 
             const labelNames = email.label_names || [];
-            const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
+            const hasLabelValue = hasLabel(labelNames, labelName);
 
-            if (!hasMarketingLabel) {
+            if (!hasLabelValue) {
                 return; // Doesn't have label
             }
 
-            const badge = document.getElementById(`badge-${messageId}`);
+            const cssClass = getLabelCssClass(labelName);
+            const badge = document.getElementById(`badge-${cssClass}-${messageId}`);
             if (badge) {
                 badge.classList.add('loading');
-                badge.innerHTML = 'Marketing<span class="loading-spinner"></span>';
+                badge.innerHTML = `${escapeHtml(labelName)}<span class="loading-spinner"></span>`;
             }
 
             try {
@@ -1871,7 +1965,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ label_names: ['Marketing'] })
+                    body: JSON.stringify({ label_names: [labelName] })
                 });
 
                 if (!response.ok) {
@@ -1880,7 +1974,7 @@
                 }
 
                 // Update the email data
-                email.label_names = labelNames.filter(label => label.toLowerCase() !== 'marketing');
+                email.label_names = labelNames.filter(label => label.toLowerCase() !== labelName.toLowerCase());
 
                 // Refresh the list display
                 renderEmails();
@@ -1891,8 +1985,8 @@
                     refreshModalBadge();
                 }
             } catch (error) {
-                console.error('Error removing Marketing label:', error);
-                alert('Error removing Marketing label: ' + error.message);
+                console.error(`Error removing ${labelName} label:`, error);
+                alert(`Error removing ${labelName} label: ` + error.message);
                 // Restore badge on error
                 if (badge) {
                     badge.classList.remove('loading');
@@ -1911,8 +2005,7 @@
             const to = currentModalEmail.to || '';
             const cc = currentModalEmail.cc || '';
             const date = formatDate(currentModalEmail.date || currentModalEmail.internalDate);
-            const updatedLabelNames = currentModalEmail.label_names || [];
-            const updatedHasMarketingLabel = updatedLabelNames.some(label => label.toLowerCase() === 'marketing');
+            const labelBadges = renderLabelBadges(currentModalEmail, 'modal');
             
             let metaHtml = `
                 <div class="modal-meta-row"><span class="modal-meta-label">From:</span> ${escapeHtml(from)}</div>
@@ -1921,9 +2014,7 @@
                 <div class="modal-meta-row"><span class="modal-meta-label">Date:</span> ${escapeHtml(date)}</div>
                 <div class="modal-meta-row">
                     <span class="modal-meta-label">Labels:</span>
-                    ${updatedHasMarketingLabel 
-                        ? '<span class="marketing-badge" id="modal-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">Marketing<span class="delete-icon" onclick="removeMarketingLabel(event)" title="Remove Marketing label">×</span></span>' 
-                        : '<span class="marketing-badge add-button" id="modal-badge" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center;" onclick="addMarketingLabel(event)" title="Click to add Marketing label">+ Marketing</span>'}
+                    ${labelBadges}
                 </div>
             `;
             modalMeta.innerHTML = metaHtml;

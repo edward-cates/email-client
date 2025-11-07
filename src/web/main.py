@@ -6,6 +6,7 @@ from queue import Queue
 from threading import Thread
 
 import uvicorn
+import yaml
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
@@ -54,6 +55,25 @@ app.add_middleware(
 
 # Get the directory where this file is located
 static_dir = Path(__file__).parent
+gmail_dir = Path(__file__).parent.parent / "gmail"
+
+
+def load_labels_config():
+    """Load labels configuration from YAML file"""
+    labels_file = gmail_dir / "labels.yaml"
+    if not labels_file.exists():
+        # Return default labels if file doesn't exist
+        return {
+            "labels": [
+                {"name": "marketing", "css_class": "marketing"},
+                {"name": "boring noti", "css_class": "boring-noti"},
+                {"name": "event", "css_class": "event"},
+                {"name": "newsletter", "css_class": "newsletter"}
+            ]
+        }
+
+    with open(labels_file, encoding='utf-8') as f:
+        return yaml.safe_load(f)
 
 
 @app.get("/")
@@ -61,6 +81,12 @@ async def read_root():
     """Serve the main Gmail client page"""
     html_file = static_dir / "index.html"
     return FileResponse(html_file)
+
+
+@app.get("/api/labels")
+async def get_labels():
+    """Get labels configuration"""
+    return load_labels_config()
 
 
 @app.get("/api/auth/status")
