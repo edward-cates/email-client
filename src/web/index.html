@@ -378,6 +378,18 @@
             -webkit-box-orient: vertical;
         }
 
+        .marketing-badge {
+            display: inline-block;
+            background-color: #1a73e8;
+            color: white;
+            font-size: 11px;
+            font-weight: 500;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
         .empty-state {
             flex: 1;
             display: flex;
@@ -1284,6 +1296,8 @@
                 const snippet = email.snippet || '';
                 const timeSent = formatDate(email.date || email.internalDate);
                 const isSelected = selectedEmails.has(email.id);
+                const labelNames = email.label_names || [];
+                const hasMarketingLabel = labelNames.some(label => label.toLowerCase() === 'marketing');
 
                 return `
                     <div class="email-item has-checkbox" 
@@ -1295,7 +1309,10 @@
                                onchange="toggleEmailSelection('${escapeHtml(email.id)}', this.checked)"
                                onclick="event.stopPropagation()">
                         <div class="email-header-row">
-                            <div class="email-sender" title="${escapeHtml(sender)}">${escapeHtml(sender)}</div>
+                            <div class="email-sender" title="${escapeHtml(sender)}">
+                                ${escapeHtml(sender)}
+                                ${hasMarketingLabel ? '<span class="marketing-badge">Marketing</span>' : ''}
+                            </div>
                             <div class="email-time">${escapeHtml(timeSent)}</div>
                         </div>
                         <div class="email-subject" title="${escapeHtml(subject)}">${escapeHtml(subject)}</div>

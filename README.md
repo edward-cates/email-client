@@ -30,3 +30,7 @@ This email client supports multiple Gmail accounts (up to 9) in a single merged 
 
 5. Each email shows which account it belongs to, and actions (archive, add labels) are performed on the correct account automatically.
 
+## Custom Labels
+
+All Gmail accounts should have a custom label called "marketing". Emails with this label will display a blue "Marketing" badge in the email list.
+

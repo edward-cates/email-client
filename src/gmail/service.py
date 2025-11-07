@@ -165,7 +165,7 @@ def _extract_body_html(payload: dict) -> str:
     return body_html
 
 
-def parse_message(message: dict) -> dict:
+def parse_message(message: dict, label_id_to_name: dict[str, str] = None) -> dict:
     """Parse Gmail message into a simpler format"""
     payload = message.get('payload', {})
     headers = payload.get('headers', [])
@@ -176,6 +176,12 @@ def parse_message(message: dict) -> dict:
     # Get body text
     body_text = _extract_body_text(payload)
 
+    # Get label IDs and names
+    label_ids = message.get('labelIds', [])
+    label_names = []
+    if label_id_to_name:
+        label_names = [label_id_to_name.get(label_id, label_id) for label_id in label_ids]
+
     return {
         'id': message.get('id'),
         'threadId': message.get('threadId'),
@@ -185,7 +191,8 @@ def parse_message(message: dict) -> dict:
         'to': header_dict.get('to', ''),
         'date': header_dict.get('date', ''),
         'body': body_text,
-        'labels': message.get('labelIds', []),
+        'labels': label_ids,
+        'label_names': label_names,
         'internalDate': message.get('internalDate'),
         # Note: account_id will be added by the API endpoint
     }
@@ -238,6 +245,9 @@ def get_emails(account_id: str, max_results: int = 50, page_token: str = None, p
     if not messages:
         return [], next_page_token
     
+    # Get label ID to name mapping once for this account
+    label_id_to_name = get_label_name_mapping(account_id)
+    
     total = len(messages)
     emails = []
     
@@ -259,7 +269,7 @@ def get_emails(account_id: str, max_results: int = 50, page_token: str = None, p
             try:
                 message = future.result()
                 if message:
-                    parsed = parse_message(message)
+                    parsed = parse_message(message, label_id_to_name)
                     emails.append(parsed)
             except Exception as e:
                 logger.error("Error fetching message: %s", e)
@@ -281,6 +291,18 @@ def archive_message(account_id: str, message_id: str) -> dict:
     except HttpError as error:
         logger.error("Error archiving message: %s", error)
         raise
+
+
+def get_label_name_mapping(account_id: str) -> dict[str, str]:
+    """Get mapping of label ID to label name for an account"""
+    service = get_gmail_service(account_id)
+    
+    try:
+        labels = service.users().labels().list(userId='me').execute()
+        return {label['id']: label['name'] for label in labels.get('labels', [])}
+    except HttpError as error:
+        logger.error("Error getting labels: %s", error)
+        return {}
 
 
 def get_or_create_label(account_id: str, label_name: str) -> str:
