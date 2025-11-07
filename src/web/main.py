@@ -21,7 +21,7 @@ from gmail.auth import (
     is_authenticated,
 )
 from gmail.config import discover_accounts
-from gmail.service import add_labels, archive_message, get_emails, get_message_count
+from gmail.service import add_labels, archive_message, get_emails, get_message, get_message_count, parse_message_full
 
 app = FastAPI()
 
@@ -456,6 +456,27 @@ async def get_emails_stream(
         yield f"data: {json.dumps({'type': 'complete', 'account_id': account_id, 'count': len(emails), 'next_page_token': next_token})}\n\n"
     
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@app.get("/api/emails/{message_id}")
+async def get_email_details(
+    message_id: str,
+    account_id: str = Query("account1")
+):
+    """Get full email details including HTML body"""
+    if not is_authenticated(account_id):
+        raise HTTPException(status_code=401, detail="Account not authenticated")
+
+    try:
+        message = get_message(account_id, message_id, format='full')
+        if not message:
+            raise HTTPException(status_code=404, detail="Email not found")
+        
+        parsed = parse_message_full(message)
+        parsed['account_id'] = account_id
+        return parsed
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching email: {str(e)}") from e
 
 
 if __name__ == "__main__":

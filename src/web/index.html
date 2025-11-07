@@ -352,6 +352,166 @@
             border-radius: 4px;
             margin: 16px;
         }
+
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .modal {
+            background-color: #fff;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 900px;
+            max-height: 90vh;
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-shrink: 0;
+        }
+
+        .modal-header-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 500;
+            color: #202124;
+            margin-bottom: 8px;
+            word-wrap: break-word;
+        }
+
+        .modal-meta {
+            font-size: 13px;
+            color: #5f6368;
+            line-height: 1.5;
+        }
+
+        .modal-meta-row {
+            margin-bottom: 4px;
+        }
+
+        .modal-meta-label {
+            font-weight: 500;
+            display: inline-block;
+            min-width: 60px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #5f6368;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-left: 16px;
+        }
+
+        .modal-close:hover {
+            background-color: #f1f3f4;
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .modal-body-tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 16px;
+        }
+
+        .modal-tab {
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            color: #5f6368;
+            font-weight: 500;
+        }
+
+        .modal-tab.active {
+            color: #1a73e8;
+            border-bottom-color: #1a73e8;
+        }
+
+        .modal-tab:hover {
+            background-color: #f8f9fa;
+        }
+
+        .modal-content {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #202124;
+        }
+
+        .modal-content-html {
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        .modal-content-html img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .modal-content-text {
+            white-space: pre-wrap;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .modal-loading {
+            text-align: center;
+            padding: 40px;
+            color: #5f6368;
+        }
+
+        .modal-error {
+            padding: 16px;
+            background-color: #fce8e6;
+            color: #c5221f;
+            border-radius: 4px;
+            margin: 16px;
+        }
     </style>
 </head>
 <body>
@@ -376,6 +536,22 @@
             </div>
             <div class="email-list" id="emailList">
                 <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email Modal -->
+    <div class="modal-overlay" id="emailModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-header-content">
+                    <div class="modal-title" id="modalTitle">Loading...</div>
+                    <div class="modal-meta" id="modalMeta"></div>
+                </div>
+                <button class="modal-close" onclick="closeEmailModal()" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <div class="modal-loading">Loading email...</div>
             </div>
         </div>
     </div>
@@ -1049,7 +1225,7 @@
                 const timeSent = formatDate(email.date || email.internalDate);
 
                 return `
-                    <div class="email-item" data-message-id="${escapeHtml(email.id)}">
+                    <div class="email-item" data-message-id="${escapeHtml(email.id)}" onclick="openEmailModal('${escapeHtml(email.id)}', '${escapeHtml(email.account_id || '')}')">
                         <div class="email-header-row">
                             <div class="email-sender" title="${escapeHtml(sender)}">${escapeHtml(sender)}</div>
                             <div class="email-time">${escapeHtml(timeSent)}</div>
@@ -1212,6 +1388,141 @@
             const emailList = document.getElementById('emailList');
             emailList.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
         }
+
+        // Email Modal Functions
+        async function openEmailModal(messageId, accountId) {
+            const modal = document.getElementById('emailModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMeta = document.getElementById('modalMeta');
+            const modalBody = document.getElementById('modalBody');
+
+            // Show modal with loading state
+            modal.classList.add('active');
+            modalTitle.textContent = 'Loading...';
+            modalMeta.innerHTML = '';
+            modalBody.innerHTML = '<div class="modal-loading">Loading email...</div>';
+
+            // If accountId is not provided, try to get it from the map
+            if (!accountId) {
+                accountId = emailAccountMap[messageId];
+            }
+
+            if (!accountId) {
+                modalBody.innerHTML = '<div class="modal-error">Error: Could not determine account for this email</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/emails/${encodeURIComponent(messageId)}?account_id=${encodeURIComponent(accountId)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load email: ${response.statusText}`);
+                }
+
+                const email = await response.json();
+
+                // Update modal title
+                modalTitle.textContent = email.subject || '(No subject)';
+
+                // Update modal meta
+                const from = parseSender(email.from || 'Unknown');
+                const to = email.to || '';
+                const cc = email.cc || '';
+                const date = formatDate(email.date || email.internalDate);
+                
+                let metaHtml = `
+                    <div class="modal-meta-row"><span class="modal-meta-label">From:</span> ${escapeHtml(from)}</div>
+                    ${to ? `<div class="modal-meta-row"><span class="modal-meta-label">To:</span> ${escapeHtml(to)}</div>` : ''}
+                    ${cc ? `<div class="modal-meta-row"><span class="modal-meta-label">Cc:</span> ${escapeHtml(cc)}</div>` : ''}
+                    <div class="modal-meta-row"><span class="modal-meta-label">Date:</span> ${escapeHtml(date)}</div>
+                `;
+                modalMeta.innerHTML = metaHtml;
+
+                // Update modal body with tabs
+                const hasHtml = email.body_html && email.body_html.trim();
+                const hasText = email.body && email.body.trim();
+
+                let bodyHtml = '';
+                
+                if (hasHtml || hasText) {
+                    bodyHtml = '<div class="modal-body-tabs">';
+                    if (hasHtml) {
+                        bodyHtml += '<button class="modal-tab active" onclick="switchEmailTab(\'html\')">HTML</button>';
+                    }
+                    if (hasText) {
+                        bodyHtml += `<button class="modal-tab ${!hasHtml ? 'active' : ''}" onclick="switchEmailTab('text')">Plain Text</button>`;
+                    }
+                    bodyHtml += '</div>';
+
+                    bodyHtml += '<div class="modal-content">';
+                    if (hasHtml) {
+                        bodyHtml += `<div id="emailContentHtml" class="modal-content-html" style="display: ${hasHtml ? 'block' : 'none'}"></div>`;
+                    }
+                    if (hasText) {
+                        bodyHtml += `<div id="emailContentText" class="modal-content-text" style="display: ${!hasHtml ? 'block' : 'none'}">${escapeHtml(email.body)}</div>`;
+                    }
+                    bodyHtml += '</div>';
+                    
+                    modalBody.innerHTML = bodyHtml;
+                    
+                    // Set HTML content after DOM is updated (for proper rendering)
+                    if (hasHtml) {
+                        const htmlContentDiv = document.getElementById('emailContentHtml');
+                        if (htmlContentDiv) {
+                            htmlContentDiv.innerHTML = email.body_html;
+                        }
+                    }
+                } else {
+                    bodyHtml = '<div class="modal-content"><p style="color: #5f6368; font-style: italic;">No content available</p></div>';
+                    modalBody.innerHTML = bodyHtml;
+                }
+            } catch (error) {
+                console.error('Error loading email:', error);
+                modalBody.innerHTML = `<div class="modal-error">Error loading email: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        function closeEmailModal() {
+            const modal = document.getElementById('emailModal');
+            modal.classList.remove('active');
+        }
+
+        function switchEmailTab(tab) {
+            const tabs = document.querySelectorAll('.modal-tab');
+            const htmlContent = document.getElementById('emailContentHtml');
+            const textContent = document.getElementById('emailContentText');
+
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            if (tab === 'html') {
+                const htmlTab = document.querySelector('.modal-tab[onclick*="html"]');
+                if (htmlTab) htmlTab.classList.add('active');
+                if (htmlContent) htmlContent.style.display = 'block';
+                if (textContent) textContent.style.display = 'none';
+            } else {
+                const textTab = document.querySelector('.modal-tab[onclick*="text"]');
+                if (textTab) textTab.classList.add('active');
+                if (htmlContent) htmlContent.style.display = 'none';
+                if (textContent) textContent.style.display = 'block';
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('emailModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEmailModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('emailModal');
+                if (modal.classList.contains('active')) {
+                    closeEmailModal();
+                }
+            }
+        });
     </script>
 </body>
 </html>

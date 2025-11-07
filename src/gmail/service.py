@@ -129,6 +129,42 @@ def _extract_body_text(payload: dict) -> str:
     return body_text
 
 
+def _extract_body_html(payload: dict) -> str:
+    """Recursively extract text/html body from message payload"""
+    body_html = ""
+
+    # Check if this part has text/html
+    if payload.get('mimeType') == 'text/html':
+        data = payload.get('body', {}).get('data', '')
+        if data:
+            try:
+                body_html = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+            except Exception:
+                pass
+        return body_html
+
+    # Check nested parts
+    if 'parts' in payload:
+        for part in payload['parts']:
+            if part.get('mimeType') == 'text/html':
+                data = part.get('body', {}).get('data', '')
+                if data:
+                    try:
+                        body_html = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+                        if body_html:
+                            break
+                    except Exception:
+                        pass
+            elif part.get('mimeType', '').startswith('multipart/'):
+                # Recursively check nested multipart
+                nested_html = _extract_body_html(part)
+                if nested_html:
+                    body_html = nested_html
+                    break
+
+    return body_html
+
+
 def parse_message(message: dict) -> dict:
     """Parse Gmail message into a simpler format"""
     payload = message.get('payload', {})
@@ -152,6 +188,36 @@ def parse_message(message: dict) -> dict:
         'labels': message.get('labelIds', []),
         'internalDate': message.get('internalDate'),
         # Note: account_id will be added by the API endpoint
+    }
+
+
+def parse_message_full(message: dict) -> dict:
+    """Parse Gmail message with full details including HTML body"""
+    payload = message.get('payload', {})
+    headers = payload.get('headers', [])
+
+    # Extract headers
+    header_dict = {h['name'].lower(): h['value'] for h in headers}
+
+    # Get both text and HTML body
+    body_text = _extract_body_text(payload)
+    body_html = _extract_body_html(payload)
+
+    return {
+        'id': message.get('id'),
+        'threadId': message.get('threadId'),
+        'snippet': message.get('snippet', ''),
+        'subject': header_dict.get('subject', '(No subject)'),
+        'from': header_dict.get('from', 'Unknown'),
+        'to': header_dict.get('to', ''),
+        'cc': header_dict.get('cc', ''),
+        'bcc': header_dict.get('bcc', ''),
+        'reply_to': header_dict.get('reply-to', ''),
+        'date': header_dict.get('date', ''),
+        'body': body_text,
+        'body_html': body_html,
+        'labels': message.get('labelIds', []),
+        'internalDate': message.get('internalDate'),
     }
 
 
