@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from classification.build_dataset import fetch_emails_until_no_labels
+from classification.build_dataset import fetch_emails_with_custom_labels
 
 
 @patch("classification.build_dataset.get_emails")
@@ -21,9 +21,9 @@ def test_fetch_emails_until_no_labels_stops_after_10_consecutive(mock_discover, 
 
     mock_get_emails.return_value = (batch1, None)
 
-    result = fetch_emails_until_no_labels()
+    result = fetch_emails_with_custom_labels()
 
-    assert len(result) == 15
+    assert len(result) == 5  # Only emails with custom labels are returned
     assert mock_get_emails.call_count == 1
 
 
@@ -45,8 +45,9 @@ def test_fetch_emails_until_no_labels_resets_on_label(mock_discover, mock_auth, 
 
     mock_get_emails.side_effect = [(batch1, "token1"), (batch2, None)]
 
-    result = fetch_emails_until_no_labels()
+    result = fetch_emails_with_custom_labels()
 
-    assert len(result) == 29  # 20 from batch1 + 9 from batch2 (stops at 10 consecutive)
+    # Only emails with custom labels are returned (5 from batch1 where i % 4 == 2)
+    assert len(result) == 5
     assert mock_get_emails.call_count == 2
 

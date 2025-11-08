@@ -8,14 +8,15 @@ from src.gmail.service import get_emails
 LABELS_YAML = BASE_DIR / "src" / "gmail" / "labels.yaml"
 
 
-def fetch_emails_until_no_labels(limit: int | None = None) -> list[dict]:
-    """Fetch emails from all accounts until 10 consecutive have no custom labels (excluding Later)
+def fetch_emails_with_custom_labels(limit: int | None = None) -> list[dict]:
+    """Fetch emails from all accounts until 10 consecutive have no custom labels (excluding Later),
+    then filter to only return emails with at least one custom label
 
     Args:
         limit: Optional maximum number of emails to fetch. If None, no limit is applied.
 
     Returns:
-        List of email dictionaries
+        List of email dictionaries that have at least one custom label
     """
     with open(LABELS_YAML) as f:
         custom_labels = {label["name"] for label in yaml.safe_load(f).get("labels", [])}
@@ -68,11 +69,18 @@ def fetch_emails_until_no_labels(limit: int | None = None) -> list[dict]:
         if not page_tokens:
             break
 
-    return emails
+    # Filter to only return emails with at least one custom label
+    filtered_emails = []
+    for email in emails:
+        email_labels = set(email.get("label_names", []))
+        if email_labels & custom_labels:
+            filtered_emails.append(email)
+
+    return filtered_emails
 
 
 if __name__ == "__main__":
-    emails = fetch_emails_until_no_labels(limit=10)
+    emails = fetch_emails_with_custom_labels(limit=10)
     preview_keys = ["snippet", "subject", "from", "to", "date", "label_names"]
     email_previews = [
         {key: email.get(key, "") for key in preview_keys}
