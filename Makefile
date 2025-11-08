@@ -1,21 +1,17 @@
-.PHONY: up lint build test help
+.PHONY: up lint test help
 
 help:
 	@echo "Available commands:"
-	@echo "  make build        - Build the Docker image"
 	@echo "  make up           - Run the application"
 	@echo "  make lint         - Run ruff linter"
 	@echo "  make test         - Run pytest tests"
 
-build:
-	docker compose build
-
 up:
-	docker compose up
+	uvicorn src.web.main:app --host 0.0.0.0 --port 9000 --reload
 
 lint:
-	docker compose run --rm app ruff check src/
+	ruff check src/
 
 test:
-	docker compose run --rm app python -m pytest tests/
+	python -m pytest tests/
 

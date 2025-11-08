@@ -3,11 +3,25 @@ An email client to classify my emails where everything runs locally.
 
 ## Running it
 
+1. Create and activate a conda environment:
+```bash
+conda create -n emails python=3.13
+conda activate emails
 ```
+
+2. Install dependencies:
+```bash
 pip install -r requirements.txt
-make up # Run the application
-make lint # Lint the code
 ```
+
+3. Run the application:
+```bash
+make up  # Run the application
+make lint  # Lint the code
+make test  # Run tests
+```
+
+**Note:** This project uses conda instead of Docker because Mac M4 MPS (Metal Performance Shaders) support doesn't work properly with Docker.
 
 ## Gmail Auth
 
