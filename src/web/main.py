@@ -15,14 +15,14 @@ from pydantic import BaseModel
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from gmail.auth import (
+from gmail.auth import (  # noqa: E402
     complete_authorization,
     get_account_email,
     get_authorization_url,
     is_authenticated,
 )
-from gmail.config import discover_accounts
-from gmail.service import (
+from gmail.config import discover_accounts  # noqa: E402
+from gmail.service import (  # noqa: E402
     add_labels,
     archive_message,
     get_emails,
@@ -397,7 +397,12 @@ async def get_merged_emails_stream(
                 if exception_result[0]:
                     raise exception_result[0]
 
-                emails, next_token = emails_result[0]
+                result = emails_result[0]
+                if result is None:
+                    continue
+
+                # Type narrowing: result is not None here
+                emails, next_token = result  # type: ignore[assignment]
 
                 # Add account_id to each email and stream them
                 for email in emails:
@@ -494,9 +499,9 @@ async def get_emails_stream(
             progress_queue.put(progress_data)
 
         # Fetch emails in a thread to allow progress streaming
-        emails_result = [None]
-        next_token_result = [None]
-        exception_result = [None]
+        emails_result: list[tuple[list[dict], str | None] | None] = [None]
+        next_token_result: list[str | None] = [None]
+        exception_result: list[Exception | None] = [None]
 
         def fetch_emails():
             try:
@@ -506,7 +511,7 @@ async def get_emails_stream(
                     page_token=page_token,
                     progress_callback=progress_cb
                 )
-                emails_result[0] = emails
+                emails_result[0] = (emails, next_token)
                 next_token_result[0] = next_token
             except Exception as e:
                 exception_result[0] = e
@@ -535,8 +540,12 @@ async def get_emails_stream(
             yield f"data: {json.dumps({'type': 'error', 'account_id': account_id, 'message': str(exception_result[0])})}\n\n"
             return
 
-        emails = emails_result[0] or []
-        next_token = next_token_result[0]
+        result = emails_result[0]
+        if result is None:
+            emails = []
+            next_token = None
+        else:
+            emails, next_token = result
 
         # Stream each email
         for email in emails:

@@ -88,9 +88,12 @@ def complete_authorization(code: str, state: str) -> Credentials:
     creds = flow.credentials
 
     # Save credentials using state as account_id
-    save_credentials(account_id, creds)
+    # Type check: flow.credentials can be either Credentials type, but save_credentials
+    # expects google.oauth2.credentials.Credentials. In practice, OAuth flow returns
+    # google.oauth2.credentials.Credentials, so we type cast it.
+    save_credentials(account_id, creds)  # type: ignore[arg-type]
 
-    return creds
+    return creds  # type: ignore[return-value]
 
 
 def get_valid_credentials(account_id: str) -> Credentials | None:

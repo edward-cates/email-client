@@ -1,7 +1,30 @@
 """Tests for classification module"""
-from unittest.mock import patch
+import sys
+from unittest.mock import mock_open, patch
 
-import pytest
+# Mock datasets module before any imports
+class MockDataset:
+    """Mock HuggingFace Dataset for testing"""
+
+    def __init__(self, data):
+        self.data = data
+
+    def __len__(self):
+        return len(self.data["text"])
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return {col: self.data[col][key] for col in self.data}
+        return self.data[key]
+
+    @staticmethod
+    def from_dict(data):
+        return MockDataset(data)
+
+
+mock_datasets = type(sys)("datasets")
+mock_datasets.Dataset = MockDataset
+sys.modules["datasets"] = mock_datasets
 
 from classification.dataset import fetch_emails_with_custom_labels
 
@@ -50,4 +73,46 @@ def test_fetch_emails_until_no_labels_resets_on_label(mock_discover, mock_auth, 
     # Only emails with custom labels are returned (5 from batch1 where i % 4 == 2)
     assert len(result) == 5
     assert mock_get_emails.call_count == 2
+
+
+def test_create_huggingface_dataset():
+    """Test that create_huggingface_dataset creates a dataset with correct format"""
+    import yaml
+
+    # Mock labels.yaml content
+    labels_content = {
+        "labels": [
+            {"name": "marketing", "css_class": "marketing"},
+            {"name": "boring noti", "css_class": "boring-noti"},
+            {"name": "Later", "css_class": "later"},
+        ]
+    }
+
+    emails = [
+        {
+            "to": "recipient@example.com",
+            "from": "sender@example.com",
+            "subject": "Test Subject",
+            "snippet": "This is a test email snippet.",
+            "label_names": ["marketing", "CATEGORY_PROMOTIONS"],
+        },
+        {
+            "to": "recipient2@example.com",
+            "from": "sender2@example.com",
+            "subject": "Another Test",
+            "snippet": "Another test email snippet.",
+            "label_names": ["boring noti", "CATEGORY_UPDATES"],
+        },
+    ]
+
+    with patch("classification.dataset.open", mock_open(read_data=yaml.safe_dump(labels_content)), create=True):
+        from classification.dataset import create_huggingface_dataset
+
+        dataset = create_huggingface_dataset(emails)
+
+    assert len(dataset) == 2
+    assert dataset[0]["text"] == "recipient@example.com / sender@example.com / Test Subject / This is a test email snippet."
+    assert dataset[0]["label"] == "marketing"
+    assert dataset[1]["text"] == "recipient2@example.com / sender2@example.com / Another Test / Another test email snippet."
+    assert dataset[1]["label"] == "boring noti"
 

@@ -29,7 +29,7 @@ def get_profile(account_id: str) -> dict:
     return profile
 
 
-def list_messages(account_id: str, max_results: int = 50, query: str = None, page_token: str = None, include_archived: bool = False) -> tuple[list[dict], str | None]:
+def list_messages(account_id: str, max_results: int = 50, query: str | None = None, page_token: str | None = None, include_archived: bool = False) -> tuple[list[dict], str | None]:
     """List messages from Gmail inbox
 
     Args:
@@ -65,7 +65,7 @@ def list_messages(account_id: str, max_results: int = 50, query: str = None, pag
         return [], None
 
 
-def get_message_count(account_id: str, query: str = None) -> int:
+def get_message_count(account_id: str, query: str | None = None) -> int:
     """Get total count of messages in inbox"""
     service = get_gmail_service(account_id)
 
@@ -166,7 +166,7 @@ def _extract_body_html(payload: dict) -> str:
     return body_html
 
 
-def parse_message(message: dict, label_id_to_name: dict[str, str] = None) -> dict:
+def parse_message(message: dict, label_id_to_name: dict[str, str] | None = None) -> dict:
     """Parse Gmail message into a simpler format"""
     payload = message.get('payload', {})
     headers = payload.get('headers', [])
@@ -199,7 +199,7 @@ def parse_message(message: dict, label_id_to_name: dict[str, str] = None) -> dic
     }
 
 
-def parse_message_full(message: dict, label_id_to_name: dict[str, str] = None) -> dict:
+def parse_message_full(message: dict, label_id_to_name: dict[str, str] | None = None) -> dict:
     """Parse Gmail message with full details including HTML body"""
     payload = message.get('payload', {})
     headers = payload.get('headers', [])

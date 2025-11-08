@@ -1,0 +1,12 @@
+{
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Darwin",
+  "venvPath": "/Users/edward/miniconda3/envs",
+  "venv": "emails",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": true,
+  "reportMissingModuleSource": false,
+  "reportGeneralTypeIssues": true,
+  "reportAssignmentType": true
+}
+

@@ -79,13 +79,81 @@ def fetch_emails_with_custom_labels(limit: int | None = None) -> list[dict]:
     return filtered_emails
 
 
+def create_huggingface_dataset(emails: list[dict] | None = None):
+    """Create a HuggingFace classification dataset from emails with custom labels.
+
+    Args:
+        emails: Optional list of email dictionaries. If None, fetches emails using
+                fetch_emails_with_custom_labels().
+
+    Returns:
+        HuggingFace Dataset with 'text' and 'label' columns
+
+    Raises:
+        AssertionError: If an email has more than one custom label (excluding "Later")
+
+    Note:
+        This function includes a compatibility workaround for pyarrow 22.0.0:
+        The datasets library (v2.14.0) expects pyarrow.PyExtensionType, but pyarrow 22.0.0
+        removed this class and only provides ExtensionType. We patch PyExtensionType to
+        point to ExtensionType before importing datasets to maintain compatibility.
+    """
+    # Compatibility workaround: pyarrow 22.0.0 removed PyExtensionType
+    # The datasets library still expects it, so we alias it to ExtensionType
+    import pyarrow as pa
+    if not hasattr(pa, "PyExtensionType"):
+        pa.PyExtensionType = pa.ExtensionType  # type: ignore[attr-defined]
+
+    # Lazy import to avoid loading datasets at module import time
+    from datasets import Dataset
+
+    if emails is None:
+        emails = fetch_emails_with_custom_labels()
+
+    with open(LABELS_YAML) as f:
+        custom_labels = {label["name"] for label in yaml.safe_load(f).get("labels", [])}
+    custom_labels.discard("Later")
+
+    texts = []
+    labels = []
+
+    for email in emails:
+        email_labels = set(email.get("label_names", []))
+        custom_email_labels = email_labels & custom_labels
+
+        assert len(custom_email_labels) == 1, (
+            f"Email must have exactly 1 custom label (excluding 'Later'), "
+            f"found {len(custom_email_labels)}: {custom_email_labels}"
+        )
+
+        label = custom_email_labels.pop()
+
+        # Format input text as "to / from / subject / snippet"
+        to = email.get("to", "")
+        from_addr = email.get("from", "")
+        subject = email.get("subject", "")
+        snippet = email.get("snippet", "").strip()
+
+        text = f"{to} / {from_addr} / {subject} / {snippet}"
+
+        texts.append(text)
+        labels.append(label)
+
+    return Dataset.from_dict({"text": texts, "label": labels})
+
+
 if __name__ == "__main__":
-    emails = fetch_emails_with_custom_labels(limit=10)
+    emails = fetch_emails_with_custom_labels()
+    print(len(emails))
+
+    dataset = create_huggingface_dataset(emails[:5])
+    print(dataset)
+
     preview_keys = ["snippet", "subject", "from", "to", "date", "label_names"]
     email_previews = [
         {key: email.get(key, "") for key in preview_keys}
-        for email in emails
+        for email in emails[:5]
     ]
+
     print(yaml.safe_dump(email_previews, sort_keys=False, allow_unicode=True))
-    print(len(emails))
 

@@ -5,7 +5,7 @@ An email client to classify my emails where everything runs locally.
 
 1. Create and activate a conda environment:
 ```bash
-conda create -n emails python=3.13
+conda create -n emails python=3.11
 conda activate emails
 ```
 
