@@ -9,3 +9,5 @@ labels:
     css_class: newsletter
   - name: direct
     css_class: direct
+  - name: Later
+    css_class: later

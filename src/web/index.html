@@ -427,11 +427,11 @@
             background-color: #137333;
         }
 
-        .label-badge.church {
+        .label-badge.later {
             background-color: #9334e8;
         }
 
-        .label-badge.church:hover:not(.loading) {
+        .label-badge.later:hover:not(.loading) {
             background-color: #7b1fa2;
         }
 
@@ -719,7 +719,10 @@
                         <span>Show only unlabeled</span>
                     </label>
                 </div>
-                <button class="archive-btn" id="archiveBtn" onclick="archiveSelectedEmails()" disabled>Archive</button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="archive-btn" id="selectLabeledBtn" onclick="selectLabeledEmails()">Select Labeled</button>
+                    <button class="archive-btn" id="archiveBtn" onclick="archiveSelectedEmails()" disabled>Archive</button>
+                </div>
             </div>
             <div class="progress-container" id="progressContainer" style="display: none;">
                 <div id="accountProgressBars"></div>
@@ -2201,6 +2204,35 @@
                 selectAllCheckbox.checked = false;
                 selectAllCheckbox.indeterminate = true;
             }
+        }
+
+        function selectLabeledEmails() {
+            // Get custom label names from LABEL_TYPES
+            const customLabelNames = LABEL_TYPES.map(lt => lt.name.toLowerCase());
+            
+            // Filter emails that have at least one custom label
+            const labeledEmails = allEmails.filter(email => {
+                const labelNames = email.label_names || [];
+                return labelNames.some(labelName => 
+                    customLabelNames.includes(labelName.toLowerCase())
+                );
+            });
+            
+            // Select all labeled emails
+            labeledEmails.forEach(email => {
+                selectedEmails.add(email.id);
+            });
+            
+            // Update all checkboxes
+            document.querySelectorAll('.email-item-checkbox').forEach(checkbox => {
+                const messageId = checkbox.getAttribute('data-message-id');
+                if (selectedEmails.has(messageId)) {
+                    checkbox.checked = true;
+                }
+            });
+            
+            updateArchiveButton();
+            updateSelectAllCheckbox();
         }
 
         function updateArchiveButton() {
