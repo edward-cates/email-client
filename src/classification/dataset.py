@@ -12,6 +12,8 @@ def fetch_emails_with_custom_labels(limit: int | None = None) -> list[dict]:
     """Fetch emails from all accounts until 10 consecutive have no custom labels (excluding Later),
     then filter to only return emails with at least one custom label
 
+    Uses pagination to keep getting emails.
+
     Args:
         limit: Optional maximum number of emails to fetch. If None, no limit is applied.
 
@@ -100,6 +102,7 @@ def create_huggingface_dataset(emails: list[dict] | None = None):
     """
     # Compatibility workaround: pyarrow 22.0.0 removed PyExtensionType
     # The datasets library still expects it, so we alias it to ExtensionType
+    # NOTE: AI did this - it works, but seems messy.
     import pyarrow as pa
     if not hasattr(pa, "PyExtensionType"):
         pa.PyExtensionType = pa.ExtensionType  # type: ignore[attr-defined]
@@ -111,8 +114,12 @@ def create_huggingface_dataset(emails: list[dict] | None = None):
         emails = fetch_emails_with_custom_labels()
 
     with open(LABELS_YAML) as f:
-        custom_labels = {label["name"] for label in yaml.safe_load(f).get("labels", [])}
-    custom_labels.discard("Later")
+        labels_data = yaml.safe_load(f).get("labels", [])
+        custom_labels = {label["name"] for label in labels_data}
+        custom_labels.discard("Later")
+        
+        # Create mapping from label name to its index in the YAML array
+        label_to_index = {label["name"]: idx for idx, label in enumerate(labels_data)}
 
     texts = []
     labels = []
@@ -126,7 +133,8 @@ def create_huggingface_dataset(emails: list[dict] | None = None):
             f"found {len(custom_email_labels)}: {custom_email_labels}"
         )
 
-        label = custom_email_labels.pop()
+        label_name = custom_email_labels.pop()
+        label_index = label_to_index[label_name]
 
         # Format input text as "to / from / subject / snippet"
         to = email.get("to", "")
@@ -137,9 +145,9 @@ def create_huggingface_dataset(emails: list[dict] | None = None):
         text = f"{to} / {from_addr} / {subject} / {snippet}"
 
         texts.append(text)
-        labels.append(label)
+        labels.append(label_index)
 
-    return Dataset.from_dict({"text": texts, "label": labels})
+    return Dataset.from_dict({"text": texts, "label_idx": labels})
 
 
 if __name__ == "__main__":

@@ -112,7 +112,7 @@ def test_create_huggingface_dataset():
 
     assert len(dataset) == 2
     assert dataset[0]["text"] == "recipient@example.com / sender@example.com / Test Subject / This is a test email snippet."
-    assert dataset[0]["label"] == "marketing"
+    assert dataset[0]["label_idx"] == 0
     assert dataset[1]["text"] == "recipient2@example.com / sender2@example.com / Another Test / Another test email snippet."
-    assert dataset[1]["label"] == "boring noti"
+    assert dataset[1]["label_idx"] == 1
 
