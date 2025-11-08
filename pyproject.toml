@@ -41,7 +41,7 @@ ignore = [
 
 [tool.ruff.lint.isort]
 # Known first party imports
-known-first-party = ["gmail", "web"]
+known-first-party = ["gmail", "web", "classification"]
 
 [tool.ruff.format]
 # Use double quotes for strings

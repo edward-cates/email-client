@@ -228,19 +228,20 @@ def parse_message_full(message: dict, label_id_to_name: dict[str, str] = None) -
     }
 
 
-def get_emails(account_id: str, max_results: int = 50, page_token: str = None, progress_callback: Callable[[int, int, str], None] | None = None) -> tuple[list[dict], str | None]:
+def get_emails(account_id: str, max_results: int = 50, page_token: str | None = None, query: str | None = None, progress_callback: Callable[[int, int, str], None] | None = None) -> tuple[list[dict], str | None]:
     """Get parsed emails for an account with parallel fetching
 
     Args:
         account_id: Account identifier
         max_results: Maximum number of emails to fetch
         page_token: Pagination token
+        query: Optional Gmail search query string
         progress_callback: Optional callback(current, total, account_id) for progress updates
 
     Returns:
         tuple: (emails list, next_page_token)
     """
-    messages, next_page_token = list_messages(account_id, max_results=max_results, page_token=page_token)
+    messages, next_page_token = list_messages(account_id, max_results=max_results, page_token=page_token, query=query)
 
     if not messages:
         return [], next_page_token
