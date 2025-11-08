@@ -29,8 +29,15 @@ def get_profile(account_id: str) -> dict:
     return profile
 
 
-def list_messages(account_id: str, max_results: int = 50, query: str = None, page_token: str = None) -> tuple[list[dict], str | None]:
+def list_messages(account_id: str, max_results: int = 50, query: str = None, page_token: str = None, include_archived: bool = False) -> tuple[list[dict], str | None]:
     """List messages from Gmail inbox
+
+    Args:
+        account_id: Account identifier
+        max_results: Maximum number of results
+        query: Optional Gmail search query
+        page_token: Optional pagination token
+        include_archived: If True, include archived emails (searches all emails, not just INBOX)
 
     Returns:
         tuple: (messages list, next_page_token)
@@ -41,8 +48,9 @@ def list_messages(account_id: str, max_results: int = 50, query: str = None, pag
         params = {
             'userId': 'me',
             'maxResults': max_results,
-            'labelIds': ['INBOX']
         }
+        if not include_archived:
+            params['labelIds'] = ['INBOX']
         if query:
             params['q'] = query
         if page_token:
@@ -228,7 +236,7 @@ def parse_message_full(message: dict, label_id_to_name: dict[str, str] = None) -
     }
 
 
-def get_emails(account_id: str, max_results: int = 50, page_token: str | None = None, query: str | None = None, progress_callback: Callable[[int, int, str], None] | None = None) -> tuple[list[dict], str | None]:
+def get_emails(account_id: str, max_results: int = 50, page_token: str | None = None, query: str | None = None, progress_callback: Callable[[int, int, str], None] | None = None, include_archived: bool = False) -> tuple[list[dict], str | None]:
     """Get parsed emails for an account with parallel fetching
 
     Args:
@@ -237,11 +245,12 @@ def get_emails(account_id: str, max_results: int = 50, page_token: str | None = 
         page_token: Pagination token
         query: Optional Gmail search query string
         progress_callback: Optional callback(current, total, account_id) for progress updates
+        include_archived: If True, include archived emails (searches all emails, not just INBOX)
 
     Returns:
         tuple: (emails list, next_page_token)
     """
-    messages, next_page_token = list_messages(account_id, max_results=max_results, page_token=page_token, query=query)
+    messages, next_page_token = list_messages(account_id, max_results=max_results, page_token=page_token, query=query, include_archived=include_archived)
 
     if not messages:
         return [], next_page_token

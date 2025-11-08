@@ -19,6 +19,7 @@ pip install -r requirements.txt
 make up  # Run the application
 make lint  # Lint the code
 make test  # Run tests
+make dataset  # Preview dataset from emails
 ```
 
 **Note:** This project uses conda instead of Docker because Mac M4 MPS (Metal Performance Shaders) support doesn't work properly with Docker.

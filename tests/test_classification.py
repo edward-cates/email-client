@@ -49,3 +49,4 @@ def test_fetch_emails_until_no_labels_resets_on_label(mock_discover, mock_auth, 
 
     assert len(result) == 29  # 20 from batch1 + 9 from batch2 (stops at 10 consecutive)
     assert mock_get_emails.call_count == 2
+
