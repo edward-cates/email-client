@@ -404,11 +404,11 @@
         }
 
         .label-badge.boring-noti {
-            background-color: #9aa0a6;
+            background-color: #5a6268;
         }
 
         .label-badge.boring-noti:hover:not(.loading) {
-            background-color: #80868b;
+            background-color: #495057;
         }
 
         .label-badge.event {
@@ -427,6 +427,22 @@
             background-color: #137333;
         }
 
+        .label-badge.church {
+            background-color: #9334e8;
+        }
+
+        .label-badge.church:hover:not(.loading) {
+            background-color: #7b1fa2;
+        }
+
+        .label-badge.direct {
+            background-color: #ff9800;
+        }
+
+        .label-badge.direct:hover:not(.loading) {
+            background-color: #f57c00;
+        }
+
         .label-badge.loading {
             opacity: 0.6;
             cursor: wait;
@@ -436,13 +452,21 @@
         }
 
         .label-badge.add-button {
-            opacity: 0.5;
+            opacity: 0.3;
             border-style: dashed;
         }
 
         .label-badge.add-button:hover:not(.loading) {
-            opacity: 0.8;
+            opacity: 0.6;
             background-color: #5f6368; /* Override default hover for add-button */
+        }
+
+        .label-badge.boring-noti.add-button {
+            background-color: #bdc1c6;
+        }
+
+        .label-badge.boring-noti.add-button:hover:not(.loading) {
+            background-color: #9aa0a6;
         }
 
         .label-badge .delete-icon {
@@ -690,6 +714,10 @@
                 <div class="email-header-left">
                     <input type="checkbox" class="email-checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
                     <div class="email-count" id="emailCount">Loading...</div>
+                    <label style="display: flex; align-items: center; gap: 6px; margin-left: 16px; font-size: 13px; color: #5f6368; cursor: pointer;">
+                        <input type="checkbox" id="filterUnlabeledCheckbox" onchange="toggleUnlabeledFilter()" style="cursor: pointer;">
+                        <span>Show only unlabeled</span>
+                    </label>
                 </div>
                 <button class="archive-btn" id="archiveBtn" onclick="archiveSelectedEmails()" disabled>Archive</button>
             </div>
@@ -728,6 +756,7 @@
         let hasMoreEmails = true;
         const BATCH_SIZE = 20; // Number of emails to load per batch
         let selectedEmails = new Set(); // Set of selected email IDs
+        let showOnlyUnlabeled = false; // Filter to show only emails with 0 labels
 
         // Label types configuration - loaded from API
         let LABEL_TYPES = [];
@@ -1444,7 +1473,27 @@
                 return;
             }
 
-            const emailsHtml = allEmails.map(email => {
+            // Filter emails based on showOnlyUnlabeled setting
+            let emailsToRender = allEmails;
+            if (showOnlyUnlabeled) {
+                emailsToRender = allEmails.filter(email => {
+                    const labelNames = email.label_names || [];
+                    // Only check for custom labels (from labels.yaml), not system labels
+                    const customLabelNames = LABEL_TYPES.map(lt => lt.name.toLowerCase());
+                    const hasCustomLabel = labelNames.some(labelName => 
+                        customLabelNames.includes(labelName.toLowerCase())
+                    );
+                    return !hasCustomLabel; // Show emails that don't have any custom labels
+                });
+            }
+
+            if (emailsToRender.length === 0) {
+                emailList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>No unlabeled emails found</div></div>';
+                updateEmailCount(0);
+                return;
+            }
+
+            const emailsHtml = emailsToRender.map(email => {
                 const sender = parseSender(email.from || 'Unknown');
                 const to = email.to || '';
                 const subject = email.subject || '(No subject)';
@@ -1485,9 +1534,15 @@
             }
 
             emailList.innerHTML = emailsHtml + loadingMoreHtml;
-            updateEmailCount(allEmails.length);
+            updateEmailCount(emailsToRender.length);
             updateSelectAllCheckbox();
             updateArchiveButton();
+        }
+
+        function toggleUnlabeledFilter() {
+            const checkbox = document.getElementById('filterUnlabeledCheckbox');
+            showOnlyUnlabeled = checkbox.checked;
+            renderEmails();
         }
 
         function updateEmailCount(count) {
@@ -2078,9 +2133,23 @@
             const selectAllCheckbox = document.getElementById('selectAllCheckbox');
             const isChecked = selectAllCheckbox.checked;
             
+            // Get the emails that are currently visible (filtered)
+            let emailsToSelect = allEmails;
+            if (showOnlyUnlabeled) {
+                emailsToSelect = allEmails.filter(email => {
+                    const labelNames = email.label_names || [];
+                    // Only check for custom labels (from labels.yaml), not system labels
+                    const customLabelNames = LABEL_TYPES.map(lt => lt.name.toLowerCase());
+                    const hasCustomLabel = labelNames.some(labelName => 
+                        customLabelNames.includes(labelName.toLowerCase())
+                    );
+                    return !hasCustomLabel; // Show emails that don't have any custom labels
+                });
+            }
+            
             if (isChecked) {
                 // Select all visible emails
-                allEmails.forEach(email => {
+                emailsToSelect.forEach(email => {
                     selectedEmails.add(email.id);
                 });
             } else {
@@ -2098,17 +2167,34 @@
 
         function updateSelectAllCheckbox() {
             const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-            if (allEmails.length === 0) {
+            
+            // Get the emails that are currently visible (filtered)
+            let visibleEmails = allEmails;
+            if (showOnlyUnlabeled) {
+                visibleEmails = allEmails.filter(email => {
+                    const labelNames = email.label_names || [];
+                    // Only check for custom labels (from labels.yaml), not system labels
+                    const customLabelNames = LABEL_TYPES.map(lt => lt.name.toLowerCase());
+                    const hasCustomLabel = labelNames.some(labelName => 
+                        customLabelNames.includes(labelName.toLowerCase())
+                    );
+                    return !hasCustomLabel; // Show emails that don't have any custom labels
+                });
+            }
+            
+            if (visibleEmails.length === 0) {
                 selectAllCheckbox.checked = false;
                 selectAllCheckbox.indeterminate = false;
                 return;
             }
             
             const selectedCount = selectedEmails.size;
-            if (selectedCount === 0) {
+            const visibleSelectedCount = visibleEmails.filter(email => selectedEmails.has(email.id)).length;
+            
+            if (visibleSelectedCount === 0) {
                 selectAllCheckbox.checked = false;
                 selectAllCheckbox.indeterminate = false;
-            } else if (selectedCount === allEmails.length) {
+            } else if (visibleSelectedCount === visibleEmails.length) {
                 selectAllCheckbox.checked = true;
                 selectAllCheckbox.indeterminate = false;
             } else {

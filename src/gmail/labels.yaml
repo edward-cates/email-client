@@ -7,4 +7,5 @@ labels:
     css_class: event
   - name: newsletter
     css_class: newsletter
-
+  - name: direct
+    css_class: direct
