@@ -3,12 +3,12 @@ from unittest.mock import patch
 
 import pytest
 
-from classification.build_dataset import fetch_emails_with_custom_labels
+from classification.dataset import fetch_emails_with_custom_labels
 
 
-@patch("classification.build_dataset.get_emails")
-@patch("classification.build_dataset.is_authenticated", return_value=True)
-@patch("classification.build_dataset.discover_accounts")
+@patch("classification.dataset.get_emails")
+@patch("classification.dataset.is_authenticated", return_value=True)
+@patch("classification.dataset.discover_accounts")
 def test_fetch_emails_until_no_labels_stops_after_10_consecutive(mock_discover, mock_auth, mock_get_emails):
     """Test that fetching stops after 10 consecutive emails without custom labels"""
     mock_discover.return_value = ["account1"]
@@ -27,9 +27,9 @@ def test_fetch_emails_until_no_labels_stops_after_10_consecutive(mock_discover, 
     assert mock_get_emails.call_count == 1
 
 
-@patch("classification.build_dataset.get_emails")
-@patch("classification.build_dataset.is_authenticated", return_value=True)
-@patch("classification.build_dataset.discover_accounts")
+@patch("classification.dataset.get_emails")
+@patch("classification.dataset.is_authenticated", return_value=True)
+@patch("classification.dataset.discover_accounts")
 def test_fetch_emails_until_no_labels_resets_on_label(mock_discover, mock_auth, mock_get_emails):
     """Test that counter resets when email has custom label"""
     mock_discover.return_value = ["account1"]
