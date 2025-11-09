@@ -12,6 +12,9 @@ def fetch_emails_with_custom_labels(limit: int | None = None) -> list[dict]:
     """Fetch emails from all accounts until 10 consecutive have no custom labels (excluding Later),
     then filter to only return emails with at least one custom label
 
+    Logic: (1) Keep fetching until finding at least one email with a custom label,
+           (2) Then stop once 10 consecutive emails without custom labels are found.
+
     Uses pagination to keep getting emails.
 
     Args:
@@ -30,10 +33,15 @@ def fetch_emails_with_custom_labels(limit: int | None = None) -> list[dict]:
 
     emails = []
     consecutive_no_label = 0
+    found_labeled_email = False  # Track if we've found at least one email with a custom label
     page_tokens = dict.fromkeys(accounts, None)
 
-    while consecutive_no_label < 10:
+    while True:
         if limit is not None and len(emails) >= limit:
+            break
+
+        # If we've found at least one labeled email and hit 10 consecutive without labels, stop
+        if found_labeled_email and consecutive_no_label >= 10:
             break
 
         batch = []
@@ -57,14 +65,20 @@ def fetch_emails_with_custom_labels(limit: int | None = None) -> list[dict]:
                 break
 
             email_labels = set(email.get("label_names", []))
-            if email_labels & custom_labels:
+            has_custom_label = bool(email_labels & custom_labels)
+            
+            if has_custom_label:
+                found_labeled_email = True
                 consecutive_no_label = 0
             else:
-                consecutive_no_label += 1
+                # Only count consecutive if we've already found at least one labeled email
+                if found_labeled_email:
+                    consecutive_no_label += 1
 
             emails.append(email)
 
-            if consecutive_no_label >= 10:
+            # Stop if we've found labeled emails and hit 10 consecutive without
+            if found_labeled_email and consecutive_no_label >= 10:
                 break
 
         page_tokens = next_tokens
@@ -94,19 +108,7 @@ def create_huggingface_dataset(emails: list[dict] | None = None):
     Raises:
         AssertionError: If an email has more than one custom label (excluding "Later")
 
-    Note:
-        This function includes a compatibility workaround for pyarrow 22.0.0:
-        The datasets library (v2.14.0) expects pyarrow.PyExtensionType, but pyarrow 22.0.0
-        removed this class and only provides ExtensionType. We patch PyExtensionType to
-        point to ExtensionType before importing datasets to maintain compatibility.
     """
-    # Compatibility workaround: pyarrow 22.0.0 removed PyExtensionType
-    # The datasets library still expects it, so we alias it to ExtensionType
-    # NOTE: AI did this - it works, but seems messy.
-    import pyarrow as pa
-    if not hasattr(pa, "PyExtensionType"):
-        pa.PyExtensionType = pa.ExtensionType  # type: ignore[attr-defined]
-
     # Lazy import to avoid loading datasets at module import time
     from datasets import Dataset
 
