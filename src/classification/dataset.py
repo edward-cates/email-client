@@ -147,7 +147,7 @@ def create_huggingface_dataset(emails: list[dict] | None = None):
         texts.append(text)
         labels.append(label_index)
 
-    return Dataset.from_dict({"text": texts, "label_idx": labels})
+    return Dataset.from_dict({"text": texts, "label": labels})
 
 
 if __name__ == "__main__":
