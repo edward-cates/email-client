@@ -83,7 +83,7 @@ def test_create_huggingface_dataset():
     labels_content = {
         "labels": [
             {"name": "marketing", "css_class": "marketing"},
-            {"name": "boring noti", "css_class": "boring-noti"},
+            {"name": "noti", "css_class": "noti"},
             {"name": "Later", "css_class": "later"},
         ]
     }
@@ -101,7 +101,7 @@ def test_create_huggingface_dataset():
             "from": "sender2@example.com",
             "subject": "Another Test",
             "snippet": "Another test email snippet.",
-            "label_names": ["boring noti", "CATEGORY_UPDATES"],
+            "label_names": ["noti", "CATEGORY_UPDATES"],
         },
     ]
 

@@ -248,7 +248,7 @@ def main():
         raise ValueError(
             "Dataset is empty. No emails with custom labels found. "
             "Please ensure you have emails with at least one custom label "
-            "(marketing, boring noti, event, newsletter, or direct) in your Gmail accounts."
+            "(marketing, noti, event, newsletter, or direct) in your Gmail accounts."
         )
     
     # Train/test split (90/10)

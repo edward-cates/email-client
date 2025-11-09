@@ -61,16 +61,6 @@ gmail_dir = Path(__file__).parent.parent / "gmail"
 def load_labels_config():
     """Load labels configuration from YAML file"""
     labels_file = gmail_dir / "labels.yaml"
-    if not labels_file.exists():
-        # Return default labels if file doesn't exist
-        return {
-            "labels": [
-                {"name": "marketing", "css_class": "marketing"},
-                {"name": "boring noti", "css_class": "boring-noti"},
-                {"name": "event", "css_class": "event"},
-                {"name": "newsletter", "css_class": "newsletter"}
-            ]
-        }
 
     with open(labels_file, encoding='utf-8') as f:
         return yaml.safe_load(f)

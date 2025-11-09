@@ -57,8 +57,8 @@ To add a new label, edit `src/gmail/labels.yaml`:
 labels:
   - name: marketing
     css_class: marketing
-  - name: boring noti
-    css_class: boring-noti
+  - name: noti
+    css_class: noti
   - name: event
     css_class: event
   - name: newsletter
@@ -91,7 +91,7 @@ Each label requires:
 
 The default configuration includes:
 - `marketing` (blue)
-- `boring noti` (gray)
+- `noti` (gray)
 - `event` (red)
 - `newsletter` (green)
 

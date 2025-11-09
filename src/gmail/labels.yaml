@@ -1,8 +1,8 @@
 labels:
   - name: marketing
     css_class: marketing
-  - name: boring noti
-    css_class: boring-noti
+  - name: noti
+    css_class: noti
   - name: event
     css_class: event
   - name: newsletter
