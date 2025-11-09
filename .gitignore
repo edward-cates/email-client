@@ -212,3 +212,5 @@ src/gmail/tokens/*
 
 # Ruff cache
 .ruff_cache/
+*.pt
+output/
