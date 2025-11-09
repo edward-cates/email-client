@@ -2,6 +2,7 @@
 from pathlib import Path
 import torch
 from transformers import TrainingArguments, Trainer, TrainerCallback
+from torch.nn import CrossEntropyLoss
 from datasets import Dataset
 from rich.console import Console
 from rich.table import Table
@@ -98,6 +99,43 @@ def train_model(
     train_dataset.set_format("torch", columns=["input_ids", "attention_mask", "label"])
     eval_dataset.set_format("torch", columns=["input_ids", "attention_mask", "label"])
     
+    # Calculate class weights to handle imbalanced dataset
+    import torch
+    from collections import Counter
+    train_labels = [train_dataset[i]["label"].item() for i in range(len(train_dataset))]
+    label_counts = Counter(train_labels)
+    total_samples = len(train_labels)
+    
+    # Get number of classes from model config (should be 6)
+    num_classes = model.config.num_labels
+    
+    # Calculate inverse frequency weights
+    # For classes not in training set, use average weight
+    class_weights = torch.ones(num_classes) * (total_samples / num_classes)
+    for label_idx, count in label_counts.items():
+        if count > 0:
+            class_weights[label_idx] = total_samples / (len(label_counts) * count)
+    
+    # Log class weights and distribution (optional debug info)
+    # console.print(f"[dim]Class weights: {dict(enumerate(class_weights.tolist()))}[/dim]")
+    # console.print(f"[dim]Label distribution in training set: {dict(label_counts)}[/dim]")
+    
+    # Create custom Trainer with weighted loss
+    class WeightedTrainer(Trainer):
+        def __init__(self, class_weights, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.class_weights = class_weights.to(self.model.device) if class_weights is not None else None
+        
+        def compute_loss(self, model, inputs, return_outputs=False):
+            labels = inputs.get("labels")
+            outputs = model(**inputs)
+            logits = outputs.get("logits")
+            
+            loss_fct = CrossEntropyLoss(weight=self.class_weights)
+            loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
+            
+            return (loss, outputs) if return_outputs else loss
+    
     # Training arguments
     training_args = TrainingArguments(
         output_dir=str(output_dir),
@@ -112,17 +150,52 @@ def train_model(
         save_strategy="epoch",
         load_best_model_at_end=True,
         metric_for_best_model="accuracy",
+        warmup_steps=10,  # Add warmup to help with small datasets
+        save_total_limit=2,  # Limit checkpoints
+        fp16=False,  # Ensure full precision for small datasets
     )
     
     # Metrics function
     def compute_metrics(eval_pred):
-        predictions, labels = eval_pred
-        predictions = predictions.argmax(axis=-1)
-        accuracy = (predictions == labels).mean()
-        return {"accuracy": accuracy}
+        import numpy as np
+        from transformers import EvalPrediction
+        
+        # EvalPrediction is a named tuple with predictions and label_ids
+        if isinstance(eval_pred, EvalPrediction):
+            predictions = eval_pred.predictions
+            labels = eval_pred.label_ids
+        elif isinstance(eval_pred, tuple) and len(eval_pred) == 2:
+            # Fallback for tuple format
+            predictions, labels = eval_pred
+        else:
+            # Try attribute access
+            predictions = eval_pred.predictions
+            labels = eval_pred.label_ids
+        
+        # Ensure numpy arrays
+        predictions = np.asarray(predictions)
+        labels = np.asarray(labels)
+        
+        # Get predicted class indices (argmax along last axis)
+        if len(predictions.shape) > 1:
+            pred_classes = np.argmax(predictions, axis=-1)
+        else:
+            pred_classes = predictions
+        
+        # Ensure labels are integers
+        labels = labels.astype(int)
+        pred_classes = pred_classes.astype(int)
+        
+        # Calculate accuracy
+        correct = (pred_classes == labels).sum()
+        total = len(labels)
+        accuracy = correct / total if total > 0 else 0.0
+        
+        return {"accuracy": float(accuracy)}
     
-    # Create trainer with rich callback
-    trainer = Trainer(
+    # Create trainer with rich callback and weighted loss
+    trainer = WeightedTrainer(
+        class_weights=class_weights,
         model=model,
         args=training_args,
         train_dataset=train_dataset,
