@@ -1,7 +1,7 @@
 """Training script for BERT email classification model"""
 from pathlib import Path
 import torch
-from transformers import TrainingArguments, Trainer, TrainerCallback
+from transformers import TrainingArguments, Trainer, TrainerCallback, EarlyStoppingCallback
 from torch.nn import CrossEntropyLoss
 from datasets import Dataset
 from rich.console import Console
@@ -75,9 +75,10 @@ def train_model(
     model,
     tokenizer,
     output_dir: str | Path = "output",
-    num_epochs: int = 3,
+    num_epochs: int = 50,
     batch_size: int = 16,
     learning_rate: float = 2e-5,
+    patience: int = 3,
 ):
     """Train the BERT model
     
@@ -87,9 +88,10 @@ def train_model(
         model: BERT model to train
         tokenizer: Tokenizer for the model
         output_dir: Directory to save training outputs
-        num_epochs: Number of training epochs
+        num_epochs: Maximum number of training epochs (early stopping may stop earlier)
         batch_size: Training batch size
         learning_rate: Learning rate for training
+        patience: Number of epochs to wait for accuracy improvement before stopping
     """
     # Tokenize datasets
     train_dataset = tokenize_dataset(train_dataset, tokenizer)
@@ -150,6 +152,7 @@ def train_model(
         save_strategy="epoch",
         load_best_model_at_end=True,
         metric_for_best_model="accuracy",
+        greater_is_better=True,
         warmup_steps=10,  # Add warmup to help with small datasets
         save_total_limit=2,  # Limit checkpoints
         fp16=False,  # Ensure full precision for small datasets
@@ -160,17 +163,20 @@ def train_model(
         import numpy as np
         from transformers import EvalPrediction
         
-        # EvalPrediction is a named tuple with predictions and label_ids
-        if isinstance(eval_pred, EvalPrediction):
-            predictions = eval_pred.predictions
-            labels = eval_pred.label_ids
-        elif isinstance(eval_pred, tuple) and len(eval_pred) == 2:
-            # Fallback for tuple format
+        # Handle different input formats
+        if isinstance(eval_pred, tuple) and len(eval_pred) == 2:
+            # Tuple format: (predictions, labels)
             predictions, labels = eval_pred
-        else:
-            # Try attribute access
+        elif isinstance(eval_pred, EvalPrediction):
+            # EvalPrediction is a named tuple with predictions and label_ids
             predictions = eval_pred.predictions
             labels = eval_pred.label_ids
+        elif hasattr(eval_pred, "predictions") and hasattr(eval_pred, "label_ids"):
+            # Try attribute access for other object types
+            predictions = eval_pred.predictions  # type: ignore
+            labels = eval_pred.label_ids  # type: ignore
+        else:
+            raise ValueError(f"Unexpected eval_pred type: {type(eval_pred)}")
         
         # Ensure numpy arrays
         predictions = np.asarray(predictions)
@@ -193,7 +199,13 @@ def train_model(
         
         return {"accuracy": float(accuracy)}
     
-    # Create trainer with rich callback and weighted loss
+    # Create early stopping callback
+    early_stopping = EarlyStoppingCallback(
+        early_stopping_patience=patience,
+        early_stopping_threshold=0.0,
+    )
+    
+    # Create trainer with rich callback, weighted loss, and early stopping
     trainer = WeightedTrainer(
         class_weights=class_weights,
         model=model,
@@ -201,7 +213,7 @@ def train_model(
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
-        callbacks=[RichMetricsCallback()],
+        callbacks=[RichMetricsCallback(), early_stopping],
     )
     
     # Train
@@ -212,6 +224,17 @@ def train_model(
 
 def main():
     """Main training function: load dataset, split, train, and save"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Train BERT email classification model")
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=3,
+        help="Number of epochs to wait for accuracy improvement before stopping (default: 3)",
+    )
+    args = parser.parse_args()
+    
     console.print(Panel.fit("[bold cyan]🚀 BERT Email Classification Training[/bold cyan]", border_style="cyan"))
     
     # Load dataset
@@ -248,18 +271,19 @@ def main():
     console.print(model_table)
     
     # Train
-    console.print("\n[bold yellow]🎯 Starting training...[/bold yellow]\n")
+    console.print(f"\n[bold yellow]🎯 Starting training...[/bold yellow] (patience: {args.patience})\n")
     trainer = train_model(
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
         model=model,
         tokenizer=tokenizer,
         output_dir="output",
-        num_epochs=3,
+        num_epochs=50,
         batch_size=16,
+        patience=args.patience,
     )
     
-    # Save model weights
+    # Save model weights (best model is already loaded due to load_best_model_at_end=True)
     with console.status(f"[bold green]Saving model weights to {MODEL_WEIGHTS_PATH}...", spinner="dots"):
         torch.save(model.state_dict(), MODEL_WEIGHTS_PATH)
     
