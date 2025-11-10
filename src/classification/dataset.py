@@ -5,6 +5,7 @@ from collections import Counter
 from src.gmail.auth import is_authenticated
 from src.gmail.config import BASE_DIR, discover_accounts
 from src.gmail.service import get_emails
+from src.classification.model import get_ml_label_names, load_labels
 
 LABELS_YAML = BASE_DIR / "src" / "gmail" / "labels.yaml"
 
@@ -31,7 +32,7 @@ def format_email_for_model(email: dict) -> str:
 
 
 def fetch_emails_with_custom_labels(limit: int | None = None) -> list[dict]:
-    """Fetch emails from all accounts until 10 consecutive have no custom labels (excluding Later),
+    """Fetch emails from all accounts until 10 consecutive have no custom labels (excluding non-ML labels),
     then filter to only return emails with at least one custom label
 
     Logic: (1) Keep fetching until finding at least one email with a custom label,
@@ -45,9 +46,7 @@ def fetch_emails_with_custom_labels(limit: int | None = None) -> list[dict]:
     Returns:
         List of email dictionaries that have at least one custom label
     """
-    with open(LABELS_YAML) as f:
-        custom_labels = {label["name"] for label in yaml.safe_load(f).get("labels", [])}
-    custom_labels.discard("Later")
+    custom_labels = get_ml_label_names()
 
     accounts = [acc_id for acc_id in discover_accounts() if is_authenticated(acc_id)]
     if not accounts:
@@ -128,7 +127,7 @@ def create_huggingface_dataset(emails: list[dict] | None = None):
         HuggingFace Dataset with 'text' and 'label' columns
 
     Raises:
-        AssertionError: If an email has more than one custom label (excluding "Later")
+        AssertionError: If an email has more than one custom label (excluding non-ML labels)
 
     """
     # Lazy import to avoid loading datasets at module import time
@@ -137,13 +136,11 @@ def create_huggingface_dataset(emails: list[dict] | None = None):
     if emails is None:
         emails = fetch_emails_with_custom_labels()
 
-    with open(LABELS_YAML) as f:
-        labels_data = yaml.safe_load(f).get("labels", [])
-        custom_labels = {label["name"] for label in labels_data}
-        custom_labels.discard("Later")
-        
-        # Create mapping from label name to its index in the YAML array
-        label_to_index = {label["name"]: idx for idx, label in enumerate(labels_data)}
+    labels_data = load_labels()
+    custom_labels = get_ml_label_names()
+    
+    # Create mapping from label name to its index in the YAML array
+    label_to_index = {label["name"]: idx for idx, label in enumerate(labels_data)}
 
     texts = []
     labels = []
@@ -153,7 +150,7 @@ def create_huggingface_dataset(emails: list[dict] | None = None):
         custom_email_labels = email_labels & custom_labels
 
         assert len(custom_email_labels) == 1, (
-            f"Email must have exactly 1 custom label (excluding 'Later'), "
+            f"Email must have exactly 1 custom label (excluding non-ML labels), "
             f"found {len(custom_email_labels)}: {custom_email_labels}"
         )
 
@@ -174,9 +171,7 @@ if __name__ == "__main__":
     print(len(emails))
 
     # Count labels
-    with open(LABELS_YAML) as f:
-        custom_labels = {label["name"] for label in yaml.safe_load(f).get("labels", [])}
-    custom_labels.discard("Later")
+    custom_labels = get_ml_label_names()
     
     label_counts = Counter(
         label

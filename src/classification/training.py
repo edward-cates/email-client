@@ -12,7 +12,7 @@ from rich import box
 from sklearn.metrics import confusion_matrix
 
 from src.classification.dataset import create_huggingface_dataset
-from src.classification.model import load_model_and_tokenizer, get_num_labels, load_labels
+from src.classification.model import load_model_and_tokenizer, get_num_labels, load_labels, get_ml_labels
 
 console = Console()
 
@@ -243,15 +243,16 @@ def _display_confusion_matrix_and_confused_samples(trainer, eval_dataset, tokeni
     probs = torch.nn.functional.softmax(torch.tensor(pred_logits), dim=-1).numpy()
     pred_confidences = np.max(probs, axis=-1)
     
-    # Load label names and filter out "Later" (not used in dataset)
+    # Load label names and filter to only ML labels
     labels_data = load_labels()
     all_label_names = [label["name"] for label in labels_data]
-    label_names = [name for name in all_label_names if name != "Later"]
+    ml_labels = get_ml_labels()
+    label_names = [label["name"] for label in ml_labels]
     
-    # Get indices of non-"Later" labels (dataset never includes "Later")
-    label_indices = [i for i, name in enumerate(all_label_names) if name != "Later"]
+    # Get indices of ML labels only
+    label_indices = [i for i, name in enumerate(all_label_names) if name in label_names]
     
-    # Compute confusion matrix with all labels, then extract only non-"Later" rows/columns
+    # Compute confusion matrix with all labels, then extract only ML label rows/columns
     cm = confusion_matrix(true_labels, pred_classes, labels=range(len(all_label_names)))
     cm = cm[np.ix_(label_indices, label_indices)]
     

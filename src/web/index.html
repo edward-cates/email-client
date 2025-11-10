@@ -449,59 +449,11 @@
             margin-left: 8px;
             vertical-align: middle;
             transition: background-color 0.2s, opacity 0.2s;
-            background-color: #5f6368; /* Default fallback color for labels without specific CSS */
-        }
-
-        .label-badge:hover:not(.loading) {
-            background-color: #3c4043; /* Default hover color */
-        }
-
-        .label-badge.marketing {
             background-color: #1a73e8;
         }
 
-        .label-badge.marketing:hover:not(.loading) {
+        .label-badge:hover:not(.loading) {
             background-color: #1557b0;
-        }
-
-        .label-badge.noti {
-            background-color: #5a6268;
-        }
-
-        .label-badge.noti:hover:not(.loading) {
-            background-color: #495057;
-        }
-
-        .label-badge.event {
-            background-color: #ea4335;
-        }
-
-        .label-badge.event:hover:not(.loading) {
-            background-color: #c5221f;
-        }
-
-        .label-badge.newsletter {
-            background-color: #34a853;
-        }
-
-        .label-badge.newsletter:hover:not(.loading) {
-            background-color: #137333;
-        }
-
-        .label-badge.later {
-            background-color: #9334e8;
-        }
-
-        .label-badge.later:hover:not(.loading) {
-            background-color: #7b1fa2;
-        }
-
-        .label-badge.direct {
-            background-color: #ff9800;
-        }
-
-        .label-badge.direct:hover:not(.loading) {
-            background-color: #f57c00;
         }
 
         .label-badge.loading {
@@ -519,15 +471,7 @@
 
         .label-badge.add-button:hover:not(.loading) {
             opacity: 0.6;
-            background-color: #5f6368; /* Override default hover for add-button */
-        }
-
-        .label-badge.noti.add-button {
-            background-color: #bdc1c6;
-        }
-
-        .label-badge.noti.add-button:hover:not(.loading) {
-            background-color: #9aa0a6;
+            background-color: #1a73e8;
         }
 
         .label-badge .delete-icon {
@@ -863,10 +807,8 @@
             try {
                 const response = await fetch('/api/labels');
                 const data = await response.json();
-                // Convert css_class to cssClass for frontend compatibility
                 LABEL_TYPES = data.labels.map(label => ({
-                    name: label.name,
-                    cssClass: label.css_class
+                    name: label.name
                 }));
                 // Populate label filter select
                 populateLabelFilter();
@@ -874,10 +816,10 @@
                 console.error('Error loading labels:', error);
                 // Fallback to default labels
                 LABEL_TYPES = [
-                    { name: 'marketing', cssClass: 'marketing' },
-                    { name: 'noti', cssClass: 'noti' },
-                    { name: 'event', cssClass: 'event' },
-                    { name: 'newsletter', cssClass: 'newsletter' }
+                    { name: 'marketing' },
+                    { name: 'noti' },
+                    { name: 'event' },
+                    { name: 'newsletter' }
                 ];
                 populateLabelFilter();
             }
@@ -1539,9 +1481,9 @@
             }
         }
 
-        function getLabelCssClass(labelName) {
-            const labelType = LABEL_TYPES.find(lt => lt.name.toLowerCase() === labelName.toLowerCase());
-            return labelType ? labelType.cssClass : 'marketing';
+        function getLabelId(labelName) {
+            // Sanitize label name for use in HTML IDs
+            return labelName.toLowerCase().replace(/[^a-z0-9]/g, '-');
         }
 
         function hasLabel(labelNames, labelName) {
@@ -1556,7 +1498,8 @@
             
             return LABEL_TYPES.map(labelType => {
                 const hasLabelValue = hasLabel(labelNames, labelType.name);
-                const badgeId = `${prefix}-${labelType.cssClass}-${messageId}`;
+                const labelId = getLabelId(labelType.name);
+                const badgeId = `${prefix}-${labelId}-${messageId}`;
                 const labelDisplayName = labelType.name;
                 const escapedLabelName = escapeHtml(labelType.name);
                 
@@ -1567,16 +1510,16 @@
                 if (prefix === 'modal') {
                     // Modal badges use addLabel/removeLabel functions
                     if (hasLabelValue) {
-                        return `<span class="label-badge ${labelType.cssClass}" id="${badgeId}" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addLabel(event, '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">${escapeHtml(labelDisplayName)}<span class="delete-icon" onclick="removeLabel(event, '${escapedLabelName}')" title="Remove ${escapeHtml(labelDisplayName)} label">×</span></span>`;
+                        return `<span class="label-badge" id="${badgeId}" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addLabel(event, '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">${escapeHtml(labelDisplayName)}<span class="delete-icon" onclick="removeLabel(event, '${escapedLabelName}')" title="Remove ${escapeHtml(labelDisplayName)} label">×</span></span>`;
                     } else {
-                        return `<span class="label-badge ${labelType.cssClass} add-button" id="${badgeId}" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center;" onclick="addLabel(event, '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">+ ${escapeHtml(labelDisplayName)}${scoreText}</span>`;
+                        return `<span class="label-badge add-button" id="${badgeId}" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center;" onclick="addLabel(event, '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">+ ${escapeHtml(labelDisplayName)}${scoreText}</span>`;
                     }
                 } else {
                     // List badges use addLabelFromList/removeLabelFromList functions
                     if (hasLabelValue) {
-                        return `<span class="label-badge ${labelType.cssClass}" id="${badgeId}" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="addLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">${escapeHtml(labelDisplayName)}<span class="delete-icon" onclick="removeLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Remove ${escapeHtml(labelDisplayName)} label">×</span></span>`;
+                        return `<span class="label-badge" id="${badgeId}" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="addLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">${escapeHtml(labelDisplayName)}<span class="delete-icon" onclick="removeLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Remove ${escapeHtml(labelDisplayName)} label">×</span></span>`;
                     } else {
-                        return `<span class="label-badge ${labelType.cssClass} add-button" id="${badgeId}" style="cursor: pointer; display: inline-flex; align-items: center;" onclick="addLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">+ ${escapeHtml(labelDisplayName)}${scoreText}</span>`;
+                        return `<span class="label-badge add-button" id="${badgeId}" style="cursor: pointer; display: inline-flex; align-items: center;" onclick="addLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">+ ${escapeHtml(labelDisplayName)}${scoreText}</span>`;
                     }
                 }
             }).join('');
@@ -1959,8 +1902,8 @@
                 return; // Already has label
             }
 
-            const cssClass = getLabelCssClass(labelName);
-            const badge = document.getElementById(`modal-${cssClass}-${escapeHtml(messageId)}`);
+            const labelId = getLabelId(labelName);
+            const badge = document.getElementById(`modal-${labelId}-${escapeHtml(messageId)}`);
             if (badge) {
                 badge.classList.add('loading');
                 badge.style.display = 'inline-flex';
@@ -2025,8 +1968,8 @@
                 return; // Doesn't have label
             }
 
-            const cssClass = getLabelCssClass(labelName);
-            const badge = document.getElementById(`modal-${cssClass}-${escapeHtml(messageId)}`);
+            const labelId = getLabelId(labelName);
+            const badge = document.getElementById(`modal-${labelId}-${escapeHtml(messageId)}`);
             if (badge) {
                 badge.classList.add('loading');
                 badge.innerHTML = `${escapeHtml(labelName)}<span class="loading-spinner"></span>`;
@@ -2092,8 +2035,8 @@
                 return; // Already has label
             }
 
-            const cssClass = getLabelCssClass(labelName);
-            const badge = document.getElementById(`badge-${cssClass}-${messageId}`);
+            const labelId = getLabelId(labelName);
+            const badge = document.getElementById(`badge-${labelId}-${messageId}`);
             if (badge) {
                 badge.classList.add('loading');
                 badge.style.display = 'inline-flex';
@@ -2161,8 +2104,8 @@
                 return; // Doesn't have label
             }
 
-            const cssClass = getLabelCssClass(labelName);
-            const badge = document.getElementById(`badge-${cssClass}-${messageId}`);
+            const labelId = getLabelId(labelName);
+            const badge = document.getElementById(`badge-${labelId}-${messageId}`);
             if (badge) {
                 badge.classList.add('loading');
                 badge.innerHTML = `${escapeHtml(labelName)}<span class="loading-spinner"></span>`;

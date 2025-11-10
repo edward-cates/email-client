@@ -82,9 +82,9 @@ def test_create_huggingface_dataset():
     # Mock labels.yaml content
     labels_content = {
         "labels": [
-            {"name": "marketing", "css_class": "marketing"},
-            {"name": "noti", "css_class": "noti"},
-            {"name": "Later", "css_class": "later"},
+            {"name": "marketing", "include_in_ml": True},
+            {"name": "noti", "include_in_ml": True},
+            {"name": "Later", "include_in_ml": False},
         ]
     }
 

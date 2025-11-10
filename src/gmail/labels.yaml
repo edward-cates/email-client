@@ -1,13 +1,13 @@
 labels:
   - name: marketing
-    css_class: marketing
+    include_in_ml: true
   - name: noti
-    css_class: noti
+    include_in_ml: true
   - name: event
-    css_class: event
+    include_in_ml: true
   - name: newsletter
-    css_class: newsletter
+    include_in_ml: true
   - name: direct
-    css_class: direct
+    include_in_ml: true
   - name: Later
-    css_class: later
+    include_in_ml: false

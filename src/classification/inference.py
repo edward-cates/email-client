@@ -3,10 +3,9 @@ import torch
 import numpy as np
 from pathlib import Path
 from typing import Optional
-import yaml
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from src.classification.model import load_model_and_tokenizer, MODEL_DIR, load_labels
+from src.classification.model import load_model_and_tokenizer, MODEL_DIR, load_labels, get_ml_label_names
 from src.classification.dataset import format_email_for_model
 from src.gmail.config import BASE_DIR
 
@@ -66,11 +65,9 @@ def predict_email_labels(email: dict) -> Optional[dict[str, int]]:
     if not model_exists:
         return None
     
-    # Load labels and check if email has custom labels
-    with open(LABELS_YAML) as f:
-        labels_data = yaml.safe_load(f).get("labels", [])
-        custom_labels = {label["name"] for label in labels_data}
-        custom_labels.discard("Later")
+    # Load labels and check if email has custom labels (excluding non-ML labels)
+    labels_data = load_labels()
+    custom_labels = get_ml_label_names()
     
     email_labels = set(email.get("label_names", []))
     has_custom_label = bool(email_labels & custom_labels)
@@ -106,9 +103,9 @@ def predict_email_labels(email: dict) -> Optional[dict[str, int]]:
     # Apply softmax to get probabilities
     probs = torch.nn.functional.softmax(logits, dim=-1).numpy()[0]
     
-    # Get label names (excluding "Later" for predictions)
-    label_names = [label["name"] for label in labels_data if label["name"] != "Later"]
-    label_indices = [i for i, label in enumerate(labels_data) if label["name"] != "Later"]
+    # Get label names and indices for ML labels only
+    label_names = [label["name"] for label in labels_data if label.get("include_in_ml", True)]
+    label_indices = [i for i, label in enumerate(labels_data) if label.get("include_in_ml", True)]
     
     # Create dictionary mapping label names to scores (rounded down to whole percent)
     # Use lowercase keys for case-insensitive lookup

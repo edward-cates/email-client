@@ -1,7 +1,6 @@
 """BERT model for email classification"""
 import yaml
 from pathlib import Path
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from src.gmail.config import BASE_DIR
 
@@ -14,6 +13,25 @@ def load_labels() -> list[dict]:
     """Load labels from labels.yaml"""
     with open(LABELS_YAML) as f:
         return yaml.safe_load(f).get("labels", [])
+
+
+def get_ml_labels() -> list[dict]:
+    """Get labels that should be included in ML training and inference.
+    
+    Returns:
+        List of label dictionaries where include_in_ml is True (defaults to True if not specified)
+    """
+    labels = load_labels()
+    return [label for label in labels if label.get("include_in_ml", True)]
+
+
+def get_ml_label_names() -> set[str]:
+    """Get set of label names that should be included in ML.
+    
+    Returns:
+        Set of label names where include_in_ml is True
+    """
+    return {label["name"] for label in get_ml_labels()}
 
 
 def get_num_labels() -> int:
@@ -29,6 +47,9 @@ def load_model_and_tokenizer():
     Returns:
         tuple: (model, tokenizer) where model is a BERT model with classification head
     """
+    # Lazy import to avoid importing transformers at module level (helps with testing)
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+    
     # Check if trained model exists
     if MODEL_DIR.exists() and (MODEL_DIR / "config.json").exists():
         # Load trained model (no warnings since config matches)
