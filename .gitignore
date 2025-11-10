@@ -214,3 +214,4 @@ src/gmail/tokens/*
 .ruff_cache/
 *.pt
 output/
+src/classification/model/

@@ -9,6 +9,27 @@ from src.gmail.service import get_emails
 LABELS_YAML = BASE_DIR / "src" / "gmail" / "labels.yaml"
 
 
+def format_email_for_model(email: dict) -> str:
+    """Format an email dictionary into text input for the classification model.
+    
+    This function converts email fields into a single text string that the model
+    expects. Change this function to modify how emails are formatted for training
+    and inference.
+    
+    Args:
+        email: Email dictionary with 'to', 'from', 'subject', 'snippet' fields
+        
+    Returns:
+        Formatted text string for model input
+    """
+    to = email.get("to", "")
+    from_addr = email.get("from", "")
+    subject = email.get("subject", "")
+    snippet = email.get("snippet", "").strip()
+    
+    return f"{to} / {from_addr} / {subject} / {snippet}"
+
+
 def fetch_emails_with_custom_labels(limit: int | None = None) -> list[dict]:
     """Fetch emails from all accounts until 10 consecutive have no custom labels (excluding Later),
     then filter to only return emails with at least one custom label
@@ -139,13 +160,8 @@ def create_huggingface_dataset(emails: list[dict] | None = None):
         label_name = custom_email_labels.pop()
         label_index = label_to_index[label_name]
 
-        # Format input text as "to / from / subject / snippet"
-        to = email.get("to", "")
-        from_addr = email.get("from", "")
-        subject = email.get("subject", "")
-        snippet = email.get("snippet", "").strip()
-
-        text = f"{to} / {from_addr} / {subject} / {snippet}"
+        # Format input text using shared function
+        text = format_email_for_model(email)
 
         texts.append(text)
         labels.append(label_index)

@@ -16,7 +16,7 @@ from src.classification.model import load_model_and_tokenizer, get_num_labels, l
 
 console = Console()
 
-MODEL_WEIGHTS_PATH = Path(__file__).parent / "model_weights.pt"
+MODEL_DIR = Path(__file__).parent / "model"
 
 
 class RichMetricsCallback(TrainerCallback):
@@ -383,11 +383,13 @@ def main():
         patience=args.patience,
     )
     
-    # Save model weights (best model is already loaded due to load_best_model_at_end=True)
-    with console.status(f"[bold green]Saving model weights to {MODEL_WEIGHTS_PATH}...", spinner="dots"):
-        torch.save(model.state_dict(), MODEL_WEIGHTS_PATH)
+    # Save model using transformers' save_pretrained (best model is already loaded due to load_best_model_at_end=True)
+    with console.status(f"[bold green]Saving model to {MODEL_DIR}...", spinner="dots"):
+        MODEL_DIR.mkdir(exist_ok=True)
+        model.save_pretrained(MODEL_DIR)
+        tokenizer.save_pretrained(MODEL_DIR)
     
-    console.print(f"\n[bold green]✓ Training complete![/bold green] Model saved to [cyan]{MODEL_WEIGHTS_PATH}[/cyan]")
+    console.print(f"\n[bold green]✓ Training complete![/bold green] Model saved to [cyan]{MODEL_DIR}[/cyan]")
     
     # Compute and display confusion matrix and confused samples
     # Use trainer's eval_dataset which is already properly formatted

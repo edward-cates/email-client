@@ -33,6 +33,16 @@ from gmail.service import (  # noqa: E402
     remove_labels,
 )
 
+# Import inference function (lazy import to avoid loading model at startup)
+def _get_label_scores(email: dict) -> dict[str, int] | None:
+    """Get label scores for an email using the model"""
+    try:
+        from classification.inference import predict_email_labels  # noqa: E402
+        return predict_email_labels(email)
+    except Exception:
+        # If model is not available or there's an error, return None
+        return None
+
 app = FastAPI()
 
 
@@ -265,8 +275,13 @@ async def get_merged_emails(
                 acc_page_token = account_page_tokens.get(account_id)
                 emails, next_token = get_emails(account_id, max_results=max_results, page_token=acc_page_token)
                 # Add account_id to each email so we know which account it's from
+                # Also add model scores for emails without custom labels
                 for email in emails:
                     email['account_id'] = account_id
+                    # Add label scores if model is available
+                    scores = _get_label_scores(email)
+                    if scores:
+                        email['label_scores'] = scores
                 all_emails.extend(emails)
                 if next_token:
                     next_tokens[account_id] = next_token
@@ -397,6 +412,10 @@ async def get_merged_emails_stream(
                 # Add account_id to each email and stream them
                 for email in emails:
                     email['account_id'] = account_id
+                    # Add label scores if model is available
+                    scores = _get_label_scores(email)
+                    if scores:
+                        email['label_scores'] = scores
                     all_emails.append(email)
                     yield f"data: {json.dumps({'type': 'email', 'email': email})}\n\n"
 
@@ -540,6 +559,10 @@ async def get_emails_stream(
         # Stream each email
         for email in emails:
             email['account_id'] = account_id
+            # Add label scores if model is available
+            scores = _get_label_scores(email)
+            if scores:
+                email['label_scores'] = scores
             yield f"data: {json.dumps({'type': 'email', 'email': email})}\n\n"
 
         # Send completion
@@ -565,6 +588,10 @@ async def get_email_details(
         label_id_to_name = get_label_name_mapping(account_id)
         parsed = parse_message_full(message, label_id_to_name)
         parsed['account_id'] = account_id
+        # Add label scores if model is available
+        scores = _get_label_scores(parsed)
+        if scores:
+            parsed['label_scores'] = scores
         return parsed
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching email: {str(e)}") from e

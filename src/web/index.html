@@ -1435,6 +1435,7 @@
 
         function renderLabelBadges(email, prefix = 'badge') {
             const labelNames = email.label_names || [];
+            const labelScores = email.label_scores || {};
             const messageId = escapeHtml(email.id);
             const accountId = escapeHtml(email.account_id || '');
             
@@ -1444,19 +1445,23 @@
                 const labelDisplayName = labelType.name;
                 const escapedLabelName = escapeHtml(labelType.name);
                 
+                // Get score for this label (if available)
+                const score = labelScores[labelType.name.toLowerCase()];
+                const scoreText = score !== undefined ? ` (${score}%)` : '';
+                
                 if (prefix === 'modal') {
                     // Modal badges use addLabel/removeLabel functions
                     if (hasLabelValue) {
                         return `<span class="label-badge ${labelType.cssClass}" id="${badgeId}" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;" onclick="addLabel(event, '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">${escapeHtml(labelDisplayName)}<span class="delete-icon" onclick="removeLabel(event, '${escapedLabelName}')" title="Remove ${escapeHtml(labelDisplayName)} label">×</span></span>`;
                     } else {
-                        return `<span class="label-badge ${labelType.cssClass} add-button" id="${badgeId}" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center;" onclick="addLabel(event, '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">+ ${escapeHtml(labelDisplayName)}</span>`;
+                        return `<span class="label-badge ${labelType.cssClass} add-button" id="${badgeId}" style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center;" onclick="addLabel(event, '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">+ ${escapeHtml(labelDisplayName)}${scoreText}</span>`;
                     }
                 } else {
                     // List badges use addLabelFromList/removeLabelFromList functions
                     if (hasLabelValue) {
                         return `<span class="label-badge ${labelType.cssClass}" id="${badgeId}" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="addLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">${escapeHtml(labelDisplayName)}<span class="delete-icon" onclick="removeLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Remove ${escapeHtml(labelDisplayName)} label">×</span></span>`;
                     } else {
-                        return `<span class="label-badge ${labelType.cssClass} add-button" id="${badgeId}" style="cursor: pointer; display: inline-flex; align-items: center;" onclick="addLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">+ ${escapeHtml(labelDisplayName)}</span>`;
+                        return `<span class="label-badge ${labelType.cssClass} add-button" id="${badgeId}" style="cursor: pointer; display: inline-flex; align-items: center;" onclick="addLabelFromList(event, '${messageId}', '${accountId}', '${escapedLabelName}')" title="Click to add ${escapeHtml(labelDisplayName)} label">+ ${escapeHtml(labelDisplayName)}${scoreText}</span>`;
                     }
                 }
             }).join('');
