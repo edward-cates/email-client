@@ -728,8 +728,8 @@
                             <option value="">Filter by label...</option>
                         </select>
                         <div class="threshold-control" id="thresholdControl" style="display: none;">
-                            <input type="range" class="threshold-slider" id="thresholdSlider" min="0" max="100" value="0" oninput="onThresholdChange(this.value)">
-                            <span class="threshold-value" id="thresholdValue">0%</span>
+                            <input type="range" class="threshold-slider" id="thresholdSlider" min="0" max="100" value="50" oninput="onThresholdChange(this.value)">
+                            <span class="threshold-value" id="thresholdValue">50%</span>
                         </div>
                     </div>
                 </div>
@@ -775,7 +775,7 @@
         let selectedEmails = new Set(); // Set of selected email IDs
         let showOnlyUnlabeled = false; // Filter to show only emails with 0 labels
         let selectedLabelFilter = ''; // Selected label for filtering
-        let labelThreshold = 0; // Threshold for label score filtering
+        let labelThreshold = 50; // Threshold for label score filtering
 
         // Label types configuration - loaded from API
         let LABEL_TYPES = [];
@@ -849,6 +849,9 @@
             
             if (selectedLabelFilter) {
                 thresholdControl.style.display = 'flex';
+                labelThreshold = 50;
+                document.getElementById('thresholdSlider').value = 50;
+                document.getElementById('thresholdValue').textContent = '50%';
             } else {
                 thresholdControl.style.display = 'none';
                 labelThreshold = 0;
