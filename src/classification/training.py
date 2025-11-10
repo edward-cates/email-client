@@ -243,12 +243,17 @@ def _display_confusion_matrix_and_confused_samples(trainer, eval_dataset, tokeni
     probs = torch.nn.functional.softmax(torch.tensor(pred_logits), dim=-1).numpy()
     pred_confidences = np.max(probs, axis=-1)
     
-    # Load label names
+    # Load label names and filter out "Later" (not used in dataset)
     labels_data = load_labels()
-    label_names = [label["name"] for label in labels_data]
+    all_label_names = [label["name"] for label in labels_data]
+    label_names = [name for name in all_label_names if name != "Later"]
     
-    # Compute confusion matrix
-    cm = confusion_matrix(true_labels, pred_classes, labels=range(len(label_names)))
+    # Get indices of non-"Later" labels (dataset never includes "Later")
+    label_indices = [i for i, name in enumerate(all_label_names) if name != "Later"]
+    
+    # Compute confusion matrix with all labels, then extract only non-"Later" rows/columns
+    cm = confusion_matrix(true_labels, pred_classes, labels=range(len(all_label_names)))
+    cm = cm[np.ix_(label_indices, label_indices)]
     
     # Display confusion matrix
     console.print("\n[bold yellow]📈 Confusion Matrix[/bold yellow]")
@@ -258,7 +263,15 @@ def _display_confusion_matrix_and_confused_samples(trainer, eval_dataset, tokeni
         cm_table.add_column(label_name, style="green", justify="right")
     
     for i, label_name in enumerate(label_names):
-        row = [label_name] + [str(cm[i, j]) for j in range(len(label_names))]
+        row_values = []
+        for j in range(len(label_names)):
+            value = str(cm[i, j])
+            # Color diagonal (correct predictions) green, others red
+            if i == j:
+                row_values.append(f"[green]{value}[/green]")
+            else:
+                row_values.append(f"[red]{value}[/red]")
+        row = [label_name] + row_values
         cm_table.add_row(*row)
     
     console.print(cm_table)
@@ -292,8 +305,8 @@ def _display_confusion_matrix_and_confused_samples(trainer, eval_dataset, tokeni
         if len(text) > 200:
             text = text[:200] + "..."
         
-        panel_content = f"[bold]True Label:[/bold] [red]{label_names[true_label]}[/red]\n"
-        panel_content += f"[bold]Predicted:[/bold] [yellow]{label_names[pred_label]}[/yellow]\n"
+        panel_content = f"[bold]True Label:[/bold] [red]{all_label_names[true_label]}[/red]\n"
+        panel_content += f"[bold]Predicted:[/bold] [yellow]{all_label_names[pred_label]}[/yellow]\n"
         panel_content += f"[bold]Confidence:[/bold] {confidence:.2%}\n\n"
         panel_content += f"[dim]{text}[/dim]"
         
@@ -336,7 +349,7 @@ def main():
         )
     
     # Train/test split (90/10)
-    dataset = dataset.train_test_split(test_size=0.1, seed=42)
+    dataset = dataset.train_test_split(test_size=0.2, seed=42)
     train_dataset = dataset["train"]
     test_dataset = dataset["test"]
     
