@@ -1,6 +1,7 @@
 """Training script for BERT email classification model"""
 from pathlib import Path
 import torch
+import numpy as np
 from transformers import TrainingArguments, Trainer, TrainerCallback, EarlyStoppingCallback
 from torch.nn import CrossEntropyLoss
 from datasets import Dataset
@@ -8,9 +9,10 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich import box
+from sklearn.metrics import confusion_matrix
 
 from src.classification.dataset import create_huggingface_dataset
-from src.classification.model import load_model_and_tokenizer, get_num_labels
+from src.classification.model import load_model_and_tokenizer, get_num_labels, load_labels
 
 console = Console()
 
@@ -222,6 +224,82 @@ def train_model(
     return trainer
 
 
+def _display_confusion_matrix_and_confused_samples(trainer, eval_dataset, tokenizer, original_texts):
+    """Display confusion matrix and top 3 most confused samples"""
+    console.print("\n[bold cyan]📊 Computing predictions and confusion matrix...[/bold cyan]")
+    
+    # Ensure dataset format is correct for prediction
+    eval_dataset.set_format("torch", columns=["input_ids", "attention_mask", "label"])
+    
+    # Get predictions
+    predictions = trainer.predict(eval_dataset)
+    pred_logits = predictions.predictions
+    true_labels = predictions.label_ids
+    
+    # Get predicted classes
+    pred_classes = np.argmax(pred_logits, axis=-1)
+    
+    # Compute softmax probabilities for confidence scores
+    probs = torch.nn.functional.softmax(torch.tensor(pred_logits), dim=-1).numpy()
+    pred_confidences = np.max(probs, axis=-1)
+    
+    # Load label names
+    labels_data = load_labels()
+    label_names = [label["name"] for label in labels_data]
+    
+    # Compute confusion matrix
+    cm = confusion_matrix(true_labels, pred_classes, labels=range(len(label_names)))
+    
+    # Display confusion matrix
+    console.print("\n[bold yellow]📈 Confusion Matrix[/bold yellow]")
+    cm_table = Table(show_header=True, header_style="bold magenta", box=box.ROUNDED)
+    cm_table.add_column("Actual \\ Predicted", style="cyan", no_wrap=True)
+    for label_name in label_names:
+        cm_table.add_column(label_name, style="green", justify="right")
+    
+    for i, label_name in enumerate(label_names):
+        row = [label_name] + [str(cm[i, j]) for j in range(len(label_names))]
+        cm_table.add_row(*row)
+    
+    console.print(cm_table)
+    
+    # Find incorrect predictions with highest confidence
+    incorrect_mask = pred_classes != true_labels
+    incorrect_indices = np.where(incorrect_mask)[0]
+    
+    if len(incorrect_indices) == 0:
+        console.print("\n[bold green]🎉 Perfect predictions! No incorrect samples found.[/bold green]")
+        return
+    
+    # Get confidence scores for incorrect predictions
+    incorrect_confidences = pred_confidences[incorrect_indices]
+    
+    # Sort by confidence (descending) and get top 3
+    top_confused_indices = incorrect_indices[np.argsort(incorrect_confidences)[::-1]][:3]
+    
+    # Display top 3 confused samples
+    console.print("\n[bold yellow]🔍 Top 3 Most Confused Samples[/bold yellow]")
+    
+    for idx, sample_idx in enumerate(top_confused_indices, 1):
+        true_label = int(true_labels[sample_idx])
+        pred_label = int(pred_classes[sample_idx])
+        confidence = float(pred_confidences[sample_idx])
+        
+        # Get the original text
+        text = original_texts[sample_idx]
+        
+        # Truncate text if too long
+        if len(text) > 200:
+            text = text[:200] + "..."
+        
+        panel_content = f"[bold]True Label:[/bold] [red]{label_names[true_label]}[/red]\n"
+        panel_content += f"[bold]Predicted:[/bold] [yellow]{label_names[pred_label]}[/yellow]\n"
+        panel_content += f"[bold]Confidence:[/bold] {confidence:.2%}\n\n"
+        panel_content += f"[dim]{text}[/dim]"
+        
+        console.print(Panel(panel_content, title=f"Sample {idx}", border_style="yellow"))
+
+
 def main():
     """Main training function: load dataset, split, train, and save"""
     import argparse
@@ -232,6 +310,12 @@ def main():
         type=int,
         default=3,
         help="Number of epochs to wait for accuracy improvement before stopping (default: 3)",
+    )
+    parser.add_argument(
+        "--max_epochs",
+        type=int,
+        default=50,
+        help="Maximum number of training epochs (default: 50)",
     )
     args = parser.parse_args()
     
@@ -256,6 +340,9 @@ def main():
     train_dataset = dataset["train"]
     test_dataset = dataset["test"]
     
+    # Store original text before tokenization for displaying confused samples
+    test_texts = test_dataset["text"]
+    
     split_table = Table(show_header=False, box=None, padding=(0, 2))
     split_table.add_row("[cyan]Train samples:[/cyan]", f"[bold]{len(train_dataset)}[/bold]")
     split_table.add_row("[cyan]Test samples:[/cyan]", f"[bold]{len(test_dataset)}[/bold]")
@@ -271,14 +358,14 @@ def main():
     console.print(model_table)
     
     # Train
-    console.print(f"\n[bold yellow]🎯 Starting training...[/bold yellow] (patience: {args.patience})\n")
+    console.print(f"\n[bold yellow]🎯 Starting training...[/bold yellow] (max_epochs: {args.max_epochs}, patience: {args.patience})\n")
     trainer = train_model(
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
         model=model,
         tokenizer=tokenizer,
         output_dir="output",
-        num_epochs=50,
+        num_epochs=args.max_epochs,
         batch_size=16,
         patience=args.patience,
     )
@@ -288,6 +375,10 @@ def main():
         torch.save(model.state_dict(), MODEL_WEIGHTS_PATH)
     
     console.print(f"\n[bold green]✓ Training complete![/bold green] Model saved to [cyan]{MODEL_WEIGHTS_PATH}[/cyan]")
+    
+    # Compute and display confusion matrix and confused samples
+    # Use trainer's eval_dataset which is already properly formatted
+    _display_confusion_matrix_and_confused_samples(trainer, trainer.eval_dataset, tokenizer, test_texts)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 """Build dataset from emails with custom labels"""
 import yaml
+from collections import Counter
 
 from src.gmail.auth import is_authenticated
 from src.gmail.config import BASE_DIR, discover_accounts
@@ -155,6 +156,27 @@ def create_huggingface_dataset(emails: list[dict] | None = None):
 if __name__ == "__main__":
     emails = fetch_emails_with_custom_labels()
     print(len(emails))
+
+    # Count labels
+    with open(LABELS_YAML) as f:
+        custom_labels = {label["name"] for label in yaml.safe_load(f).get("labels", [])}
+    custom_labels.discard("Later")
+    
+    label_counts = Counter(
+        label
+        for email in emails
+        for label in set(email.get("label_names", [])) & custom_labels
+    )
+    
+    total = sum(label_counts.values())
+    print("\nLabel counts (non-normalized):")
+    for label, count in sorted(label_counts.items()):
+        print(f"  {label}: {count}")
+    
+    print("\nLabel counts (normalized):")
+    for label, count in sorted(label_counts.items()):
+        percentage = (count / total * 100) if total > 0 else 0
+        print(f"  {label}: {percentage:.2f}%")
 
     dataset = create_huggingface_dataset(emails[:5])
     print(dataset)

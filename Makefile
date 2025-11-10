@@ -7,6 +7,7 @@ help:
 	@echo "  make test         - Run pytest tests"
 	@echo "  make dataset-preview      - Preview dataset from emails"
 	@echo "  make train          - Train a BERT email classification model"
+	@echo "                       Usage: make train MAX_EPOCHS=10 PATIENCE=5"
 
 up:
 	uvicorn src.web.main:app --host 0.0.0.0 --port 9000 --reload
@@ -21,4 +22,4 @@ dataset-preview:
 	python -m src.classification.dataset
 
 train:
-	python -m src.classification.training
+	python -m src.classification.training $(if $(MAX_EPOCHS),--max_epochs $(MAX_EPOCHS)) $(if $(PATIENCE),--patience $(PATIENCE))
