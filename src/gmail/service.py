@@ -70,19 +70,47 @@ def get_message_count(account_id: str, query: str | None = None) -> int:
     service = get_gmail_service(account_id)
 
     try:
-        params = {
+        params: dict = {
             'userId': 'me',
             'labelIds': ['INBOX'],
-            'maxResults': 1  # We only need the resultSizeEstimate
+            'maxResults': 500  # Maximum allowed per page for efficiency
         }
         if query:
             params['q'] = query
 
-        results = service.users().messages().list(**params).execute()
-        # Gmail API provides resultSizeEstimate which is approximate
-        return results.get('resultSizeEstimate', 0)
+        # resultSizeEstimate is unreliable - it's often missing or 0 even when messages exist
+        # Instead, we paginate through all messages to get an accurate count
+        total_count = 0
+        page_token = None
+        
+        while True:
+            if page_token:
+                params['pageToken'] = page_token
+            else:
+                params.pop('pageToken', None)
+            
+            results = service.users().messages().list(**params).execute()
+            messages = results.get('messages', [])
+            total_count += len(messages)
+            
+            page_token = results.get('nextPageToken')
+            if not page_token:
+                break
+        
+        return total_count
     except HttpError as error:
-        logger.error("Error getting message count: %s", error)
+        # Log detailed error information for debugging
+        status_code = getattr(error, 'status_code', None)
+        error_details = getattr(error, 'error_details', None)
+        error_content = getattr(error, 'content', None)
+        
+        logger.error(
+            "Error getting message count for account %s: status_code=%s, error=%s, details=%s, content=%s",
+            account_id, status_code, error, error_details, error_content
+        )
+        return 0
+    except Exception as error:
+        logger.error("Unexpected error getting message count for account %s: %s", account_id, error)
         return 0
 
 

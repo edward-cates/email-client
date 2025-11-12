@@ -306,8 +306,8 @@ def _display_confusion_matrix_and_confused_samples(trainer, eval_dataset, tokeni
         if len(text) > 200:
             text = text[:200] + "..."
         
-        panel_content = f"[bold]True Label:[/bold] [red]{all_label_names[true_label]}[/red]\n"
-        panel_content += f"[bold]Predicted:[/bold] [yellow]{all_label_names[pred_label]}[/yellow]\n"
+        panel_content = f"[bold]True Label:[/bold] [green]{all_label_names[true_label]}[/green]\n"
+        panel_content += f"[bold]Predicted:[/bold] [red]{all_label_names[pred_label]}[/red]\n"
         panel_content += f"[bold]Confidence:[/bold] {confidence:.2%}\n\n"
         panel_content += f"[dim]{text}[/dim]"
         
@@ -350,7 +350,7 @@ def main():
         )
     
     # Train/test split (90/10)
-    dataset = dataset.train_test_split(test_size=0.2, seed=42)
+    dataset = dataset.train_test_split(test_size=0.1, seed=42)
     train_dataset = dataset["train"]
     test_dataset = dataset["test"]
     
