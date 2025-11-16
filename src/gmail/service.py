@@ -65,16 +65,26 @@ def list_messages(account_id: str, max_results: int = 50, query: str | None = No
         return [], None
 
 
-def get_message_count(account_id: str, query: str | None = None) -> int:
-    """Get total count of messages in inbox"""
+def get_message_count(account_id: str, query: str | None = None, include_archived: bool = False) -> int:
+    """Get total count of messages
+    
+    Args:
+        account_id: Account identifier
+        query: Optional Gmail search query string
+        include_archived: If True, include archived emails (searches all emails, not just INBOX)
+    
+    Returns:
+        Total count of messages matching the query
+    """
     service = get_gmail_service(account_id)
 
     try:
         params: dict = {
             'userId': 'me',
-            'labelIds': ['INBOX'],
             'maxResults': 500  # Maximum allowed per page for efficiency
         }
+        if not include_archived:
+            params['labelIds'] = ['INBOX']
         if query:
             params['q'] = query
 

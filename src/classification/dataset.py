@@ -1,10 +1,11 @@
 """Build dataset from emails with custom labels"""
 import yaml
 from collections import Counter
+from tqdm import tqdm
 
 from src.gmail.auth import is_authenticated
 from src.gmail.config import BASE_DIR, discover_accounts
-from src.gmail.service import get_all_emails_with_any_labels
+from src.gmail.service import get_all_emails_with_any_labels, get_message_count
 from src.classification.model import get_ml_label_names, load_labels
 
 LABELS_YAML = BASE_DIR / "src" / "gmail" / "labels.yaml"
@@ -59,14 +60,52 @@ def fetch_emails_with_custom_labels(limit: int | None = None) -> list[dict]:
 
     all_emails = []
     
+    # Build the Gmail query for all ML labels
+    # Gmail query syntax: label:"name1" OR label:"name2" OR ...
+    query_parts = [f'label:"{name}"' for name in ml_labels]
+    query = ' OR '.join(query_parts)
+    
     # Fetch all emails with any ML label from each account
     # Using get_all_emails_with_any_labels is more efficient than querying each label separately
     # as it uses a single OR query: label:"name1" OR label:"name2" OR ...
     for account_id in accounts:
+        # Get total count upfront (same way inbox does it)
+        total_count = get_message_count(account_id, query=query, include_archived=True)
+        
+        # Create a progress bar for this account with known total
+        pbar = tqdm(
+            desc=f"Fetching emails from {account_id}",
+            total=total_count,
+            unit="emails",
+            leave=True,
+            dynamic_ncols=True
+        )
+        
+        # Track the last count to avoid updating too frequently
+        last_count = 0
+        
+        def progress_callback(current: int, total: int, acc_id: str) -> None:
+            """Update progress bar with current count"""
+            nonlocal last_count
+            # Update progress bar with the cumulative count
+            # The callback from get_all_emails_with_any_labels passes (total_fetched, total_fetched, account_id)
+            # which represents cumulative emails fetched across all pages
+            if current > last_count:
+                last_count = current
+                pbar.n = current
+                pbar.refresh()
+        
         account_emails = get_all_emails_with_any_labels(
             account_id,
-            list(ml_labels)
+            list(ml_labels),
+            progress_callback=progress_callback
         )
+        
+        # Update final count and close progress bar
+        pbar.n = len(account_emails)
+        pbar.refresh()
+        pbar.close()
+        
         # Add account_id to each email
         for email in account_emails:
             email["account_id"] = account_id
