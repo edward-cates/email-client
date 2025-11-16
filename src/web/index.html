@@ -1146,7 +1146,8 @@
         let totalEmailCount = 0;
         let isLoading = false;
         let hasMoreEmails = true;
-        const BATCH_SIZE = 20; // Number of emails to load per batch
+        const BATCH_SIZE = 200; // Number of emails to load per batch
+        let accountCounts = {}; // Store email counts per account
         let selectedEmails = new Set(); // Set of selected email IDs
         let showOnlyUnlabeled = false; // Filter to show only emails with 0 labels
         let selectedLabelFilter = ''; // Selected label for filtering
@@ -1316,7 +1317,7 @@
             }
             
             // Step 1: Fetch email counts for each account first
-            let accountCounts = {};
+            accountCounts = {};
             try {
                 const countsResponse = await fetch('/api/emails/account-counts');
                 if (countsResponse.ok) {
@@ -1417,15 +1418,21 @@
                 progressContainer.style.display = 'block';
             }
             
-            // Ensure accountProgress is initialized for all accounts
+            // Ensure accountProgress is initialized for all accounts with correct totals
             authenticatedAccounts.forEach(account => {
+                const inboxCount = accountCounts[account.account_id] || BATCH_SIZE;
+                const maxResults = Math.min(inboxCount, BATCH_SIZE);
                 if (!accountProgress[account.account_id]) {
                     accountProgress[account.account_id] = {
                         current: 0,
-                        total: BATCH_SIZE,
-                        totalCount: 0,
+                        total: maxResults,
+                        totalCount: inboxCount,
                         percent: 0
                     };
+                } else {
+                    // Update total to match what we're actually requesting
+                    accountProgress[account.account_id].total = maxResults;
+                    accountProgress[account.account_id].totalCount = inboxCount;
                 }
             });
             updateAccountProgressBars();
@@ -1433,7 +1440,10 @@
             // Start streaming from all accounts in parallel
             const streamPromises = authenticatedAccounts.map(account => {
                 return new Promise((resolve, reject) => {
-                    let url = `/api/emails/stream?account_id=${encodeURIComponent(account.account_id)}&max_results=${BATCH_SIZE}`;
+                    // Use min(200, inbox_length) for max_results
+                    const inboxCount = accountCounts[account.account_id] || BATCH_SIZE;
+                    const maxResults = Math.min(inboxCount, BATCH_SIZE);
+                    let url = `/api/emails/stream?account_id=${encodeURIComponent(account.account_id)}&max_results=${maxResults}`;
                     
                     // Parse nextPageToken to get token for this account if needed
                     if (nextPageToken) {
@@ -2001,6 +2011,52 @@
                     
                     // If no score available and threshold > 0, don't show
                     return labelThreshold === 0;
+                });
+            }
+
+            // Sort emails based on filter state
+            if (selectedLabelFilter) {
+                // Sort by score ascending for the selected label
+                const selectedLabelLower = selectedLabelFilter.toLowerCase();
+                const customLabelNames = LABEL_TYPES.map(lt => lt.name.toLowerCase());
+                emailsToRender.sort((a, b) => {
+                    const labelNamesA = a.label_names || [];
+                    const labelNamesB = b.label_names || [];
+                    const labelScoresA = a.label_scores || {};
+                    const labelScoresB = b.label_scores || {};
+                    
+                    // Check if labels are manually set with the filtered label (counts as 100%)
+                    const hasManualLabelA = labelNamesA.some(labelName => 
+                        labelName.toLowerCase() === selectedLabelLower
+                    );
+                    const hasManualLabelB = labelNamesB.some(labelName => 
+                        labelName.toLowerCase() === selectedLabelLower
+                    );
+                    
+                    // Check if email has a different manual label (should be treated as 0 for filtered label)
+                    const hasDifferentManualLabelA = !hasManualLabelA && labelNamesA.some(labelName => 
+                        customLabelNames.includes(labelName.toLowerCase())
+                    );
+                    const hasDifferentManualLabelB = !hasManualLabelB && labelNamesB.some(labelName => 
+                        customLabelNames.includes(labelName.toLowerCase())
+                    );
+                    
+                    // Get scores:
+                    // - 100 if manually labeled with filtered label
+                    // - 0 if manually labeled with a different custom label
+                    // - model score otherwise, or -1 if no score
+                    const scoreA = hasManualLabelA ? 100 : (hasDifferentManualLabelA ? 0 : (labelScoresA[selectedLabelLower] ?? -1));
+                    const scoreB = hasManualLabelB ? 100 : (hasDifferentManualLabelB ? 0 : (labelScoresB[selectedLabelLower] ?? -1));
+                    
+                    // Sort ascending (lower scores first)
+                    return scoreA - scoreB;
+                });
+            } else {
+                // Sort by time (newest first)
+                emailsToRender.sort((a, b) => {
+                    const dateA = parseInt(a.internalDate || 0);
+                    const dateB = parseInt(b.internalDate || 0);
+                    return dateB - dateA;
                 });
             }
 

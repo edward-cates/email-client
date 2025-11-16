@@ -4,7 +4,7 @@ from collections import Counter
 
 from src.gmail.auth import is_authenticated
 from src.gmail.config import BASE_DIR, discover_accounts
-from src.gmail.service import get_emails
+from src.gmail.service import get_all_emails_with_any_labels
 from src.classification.model import get_ml_label_names, load_labels
 
 LABELS_YAML = BASE_DIR / "src" / "gmail" / "labels.yaml"
@@ -32,87 +32,58 @@ def format_email_for_model(email: dict) -> str:
 
 
 def fetch_emails_with_custom_labels(limit: int | None = None) -> list[dict]:
-    """Fetch emails from all accounts until 10 consecutive have no custom labels (excluding non-ML labels),
-    then filter to only return emails with at least one custom label
-
-    Logic: (1) Keep fetching until finding at least one email with a custom label,
-           (2) Then stop once 10 consecutive emails without custom labels are found.
-
-    Uses pagination to keep getting emails.
-
+    """Fetch ALL emails from all accounts that have any ML label (where include_in_ml is True).
+    
+    This method uses Gmail label queries to fetch all emails with ML labels, regardless of
+    when they were received or whether they're archived. This is more robust than the
+    previous approach of fetching emails chronologically until finding 10 consecutive
+    without labels.
+    
     Args:
         limit: Optional maximum number of emails to fetch. If None, no limit is applied.
+               Note: This limit is applied after fetching all emails, so it may still
+               fetch all emails from Gmail before limiting.
 
     Returns:
-        List of email dictionaries that have at least one custom label
+        List of email dictionaries that have at least one ML label (where include_in_ml is True)
     """
-    custom_labels = get_ml_label_names()
+    # Get ML labels (where include_in_ml is True)
+    ml_labels = get_ml_label_names()
+    
+    if not ml_labels:
+        return []
 
     accounts = [acc_id for acc_id in discover_accounts() if is_authenticated(acc_id)]
     if not accounts:
         return []
 
-    emails = []
-    consecutive_no_label = 0
-    found_labeled_email = False  # Track if we've found at least one email with a custom label
-    page_tokens = dict.fromkeys(accounts, None)
-
-    while True:
-        if limit is not None and len(emails) >= limit:
-            break
-
-        # If we've found at least one labeled email and hit 10 consecutive without labels, stop
-        if found_labeled_email and consecutive_no_label >= 10:
-            break
-
-        batch = []
-        next_tokens = {}
-
-        for account_id in accounts:
-            acc_emails, next_token = get_emails(account_id, max_results=50, page_token=page_tokens.get(account_id), include_archived=True)
-            for email in acc_emails:
-                email["account_id"] = account_id
-            batch.extend(acc_emails)
-            if next_token:
-                next_tokens[account_id] = next_token
-
-        if not batch:
-            break
-
-        batch.sort(key=lambda x: int(x.get("internalDate", 0) or 0), reverse=True)
-
-        for email in batch:
-            if limit is not None and len(emails) >= limit:
-                break
-
-            email_labels = set(email.get("label_names", []))
-            has_custom_label = bool(email_labels & custom_labels)
-            
-            if has_custom_label:
-                found_labeled_email = True
-                consecutive_no_label = 0
-            else:
-                # Only count consecutive if we've already found at least one labeled email
-                if found_labeled_email:
-                    consecutive_no_label += 1
-
-            emails.append(email)
-
-            # Stop if we've found labeled emails and hit 10 consecutive without
-            if found_labeled_email and consecutive_no_label >= 10:
-                break
-
-        page_tokens = next_tokens
-        if not page_tokens:
-            break
-
-    # Filter to only return emails with at least one custom label
+    all_emails = []
+    
+    # Fetch all emails with any ML label from each account
+    # Using get_all_emails_with_any_labels is more efficient than querying each label separately
+    # as it uses a single OR query: label:"name1" OR label:"name2" OR ...
+    for account_id in accounts:
+        account_emails = get_all_emails_with_any_labels(
+            account_id,
+            list(ml_labels)
+        )
+        # Add account_id to each email
+        for email in account_emails:
+            email["account_id"] = account_id
+        all_emails.extend(account_emails)
+    
+    # Filter to ensure emails actually have at least one ML label
+    # (Gmail queries should handle this, but this is a safety check)
     filtered_emails = []
-    for email in emails:
+    for email in all_emails:
         email_labels = set(email.get("label_names", []))
-        if email_labels & custom_labels:
+        if email_labels & ml_labels:
             filtered_emails.append(email)
-
+    
+    # Apply limit if specified
+    if limit is not None:
+        filtered_emails = filtered_emails[:limit]
+    
     return filtered_emails
 
 

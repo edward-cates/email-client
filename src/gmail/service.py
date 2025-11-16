@@ -313,6 +313,109 @@ def get_emails(account_id: str, max_results: int = 50, page_token: str | None = 
     return emails, next_page_token
 
 
+def get_all_emails_with_label(account_id: str, label_name: str, progress_callback: Callable[[int, int, str], None] | None = None) -> list[dict]:
+    """Get ALL emails with a specific label using pagination.
+    
+    This method fetches all emails that have the specified label, regardless of
+    when they were received or whether they're archived. Uses pagination to
+    ensure all matching emails are retrieved.
+    
+    Args:
+        account_id: Account identifier
+        label_name: Name of the label to search for
+        progress_callback: Optional callback(current, total, account_id) for progress updates
+        
+    Returns:
+        List of all email dictionaries with the specified label
+    """
+    all_emails = []
+    page_token = None
+    total_fetched = 0
+    
+    # Gmail query syntax: label:labelname searches for emails with that label
+    query = f'label:"{label_name}"'
+    
+    while True:
+        emails, next_page_token = get_emails(
+            account_id,
+            max_results=500,  # Use max page size for efficiency
+            page_token=page_token,
+            query=query,
+            progress_callback=progress_callback,
+            include_archived=True  # Search all emails, not just inbox
+        )
+        
+        if not emails:
+            break
+            
+        all_emails.extend(emails)
+        total_fetched += len(emails)
+        
+        if progress_callback:
+            progress_callback(total_fetched, total_fetched, account_id)
+        
+        if not next_page_token:
+            break
+            
+        page_token = next_page_token
+    
+    return all_emails
+
+
+def get_all_emails_with_any_labels(account_id: str, label_names: list[str], progress_callback: Callable[[int, int, str], None] | None = None) -> list[dict]:
+    """Get ALL emails that have ANY of the specified labels using pagination.
+    
+    This method fetches all emails that have at least one of the specified labels,
+    regardless of when they were received or whether they're archived. Uses pagination
+    to ensure all matching emails are retrieved.
+    
+    Args:
+        account_id: Account identifier
+        label_names: List of label names to search for
+        progress_callback: Optional callback(current, total, account_id) for progress updates
+        
+    Returns:
+        List of all email dictionaries with at least one of the specified labels
+    """
+    if not label_names:
+        return []
+    
+    all_emails = []
+    page_token = None
+    total_fetched = 0
+    
+    # Gmail query syntax: label:name1 OR label:name2 OR label:name3
+    # Quote label names to handle spaces and special characters
+    query_parts = [f'label:"{name}"' for name in label_names]
+    query = ' OR '.join(query_parts)
+    
+    while True:
+        emails, next_page_token = get_emails(
+            account_id,
+            max_results=500,  # Use max page size for efficiency
+            page_token=page_token,
+            query=query,
+            progress_callback=progress_callback,
+            include_archived=True  # Search all emails, not just inbox
+        )
+        
+        if not emails:
+            break
+            
+        all_emails.extend(emails)
+        total_fetched += len(emails)
+        
+        if progress_callback:
+            progress_callback(total_fetched, total_fetched, account_id)
+        
+        if not next_page_token:
+            break
+            
+        page_token = next_page_token
+    
+    return all_emails
+
+
 def archive_message(account_id: str, message_id: str) -> dict:
     """Archive a message by removing INBOX label"""
     service = get_gmail_service(account_id)

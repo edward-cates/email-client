@@ -29,50 +29,53 @@ sys.modules["datasets"] = mock_datasets
 from classification.dataset import fetch_emails_with_custom_labels
 
 
-@patch("classification.dataset.get_emails")
+@patch("classification.dataset.get_ml_label_names", return_value={"marketing", "noti"})
+@patch("classification.dataset.get_all_emails_with_any_labels")
 @patch("classification.dataset.is_authenticated", return_value=True)
 @patch("classification.dataset.discover_accounts")
-def test_fetch_emails_until_no_labels_stops_after_10_consecutive(mock_discover, mock_auth, mock_get_emails):
-    """Test that fetching stops after 10 consecutive emails without custom labels"""
+def test_fetch_emails_with_ml_labels(mock_discover, mock_auth, mock_get_all_emails, mock_get_ml_labels):
+    """Test that fetching returns all emails with ML labels"""
     mock_discover.return_value = ["account1"]
 
-    batch1 = [
+    emails_with_labels = [
         {"id": str(i), "label_names": ["marketing"], "internalDate": str(1000 - i)} for i in range(5)
-    ] + [
-        {"id": str(i), "label_names": [], "internalDate": str(1000 - i)} for i in range(5, 15)
     ]
 
-    mock_get_emails.return_value = (batch1, None)
+    mock_get_all_emails.return_value = emails_with_labels
 
     result = fetch_emails_with_custom_labels()
 
-    assert len(result) == 5  # Only emails with custom labels are returned
-    assert mock_get_emails.call_count == 1
+    assert len(result) == 5  # Only emails with ML labels are returned
+    assert mock_get_all_emails.call_count == 1
+    # Verify it was called with ML labels
+    call_args = mock_get_all_emails.call_args
+    assert call_args[0][0] == "account1"
+    assert set(call_args[0][1]) == {"marketing", "noti"}
 
 
-@patch("classification.dataset.get_emails")
+@patch("classification.dataset.get_ml_label_names", return_value={"marketing", "noti"})
+@patch("classification.dataset.get_all_emails_with_any_labels")
 @patch("classification.dataset.is_authenticated", return_value=True)
 @patch("classification.dataset.discover_accounts")
-def test_fetch_emails_until_no_labels_resets_on_label(mock_discover, mock_auth, mock_get_emails):
-    """Test that counter resets when email has custom label"""
+def test_fetch_emails_filters_non_ml_labels(mock_discover, mock_auth, mock_get_all_emails, mock_get_ml_labels):
+    """Test that emails without ML labels are filtered out"""
     mock_discover.return_value = ["account1"]
 
-    batch1 = []
-    for i in range(20):
-        batch1.append({
-            "id": str(i),
-            "label_names": ["marketing"] if i % 4 == 2 else [],
-            "internalDate": str(1000 - i)
-        })
-    batch2 = [{"id": str(i), "label_names": [], "internalDate": str(980 - i)} for i in range(20, 30)]
+    # Mix of emails with and without ML labels
+    emails = [
+        {"id": "1", "label_names": ["marketing"], "internalDate": "1000"},
+        {"id": "2", "label_names": ["Later"], "internalDate": "999"},  # Later has include_in_ml: false
+        {"id": "3", "label_names": ["noti"], "internalDate": "998"},
+        {"id": "4", "label_names": [], "internalDate": "997"},
+    ]
 
-    mock_get_emails.side_effect = [(batch1, "token1"), (batch2, None)]
+    mock_get_all_emails.return_value = emails
 
     result = fetch_emails_with_custom_labels()
 
-    # Only emails with custom labels are returned (5 from batch1 where i % 4 == 2)
-    assert len(result) == 5
-    assert mock_get_emails.call_count == 2
+    # Should only return emails with ML labels (marketing and noti, not Later)
+    assert len(result) == 2
+    assert all("marketing" in email["label_names"] or "noti" in email["label_names"] for email in result)
 
 
 def test_create_huggingface_dataset():
