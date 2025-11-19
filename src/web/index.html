@@ -1977,8 +1977,9 @@
                 hasLabel(labelNames, labelName) {
                     return labelNames.some(label => label.toLowerCase() === labelName.toLowerCase());
                 },
-                getScoreText(email, labelType) {
-                    const score = email.label_scores?.[labelType.name.toLowerCase()];
+                getScoreText(email, labelTypeName) {
+                    if (!labelTypeName) return '';
+                    const score = email.label_scores?.[labelTypeName.toLowerCase()];
                     return score !== undefined ? ` (${score}%)` : '';
                 },
                 // Get effective score for a label on an email
