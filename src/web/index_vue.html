@@ -1,0 +1,2350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail Client</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --midnight-black: #0a0e27;
+            --navy: #1a2332;
+            --navy-dark: #141b26;
+            --ocean: #2d4a5e;
+            --ocean-light: #3d5f7a;
+            --ocean-bright: #4a7c9e;
+            --accent: #5b9bd5;
+            --accent-bright: #7bb3d9;
+            --success: #4caf50;
+            --danger: #f44336;
+            --text-primary: #e8eef4;
+            --text-secondary: #b8c5d1;
+            --text-tertiary: #8a9ba8;
+            --border: #2a3441;
+            --border-light: #1f2833;
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+            --shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+            --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.6);
+            --radius: 0px;
+            --radius-sm: 0px;
+            --radius-lg: 0px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: var(--midnight-black);
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(45, 74, 94, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(91, 155, 213, 0.1) 0%, transparent 50%);
+            background-attachment: fixed;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: var(--navy);
+            border-bottom: 2px solid var(--border);
+            padding: 18px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: var(--shadow-md);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 300;
+            color: var(--accent-bright);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            gap: 2px;
+            padding: 2px;
+            background: var(--midnight-black);
+        }
+
+        .sidebar {
+            width: 300px;
+            background: var(--navy);
+            border: 1px solid var(--border);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            overflow-y: auto;
+            max-height: calc(100vh - 80px);
+        }
+
+        .auth-section {
+            margin-bottom: 32px;
+        }
+
+        .auth-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .account-item {
+            padding: 20px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            background: var(--navy-dark);
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .account-item:hover {
+            border-color: var(--accent);
+            background: var(--ocean);
+            box-shadow: var(--shadow);
+        }
+
+        .account-item.authenticated {
+            border-left: 3px solid var(--success);
+            background: var(--navy-dark);
+        }
+
+        .account-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .account-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .account-email {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            font-weight: 300;
+        }
+
+        .account-email.authenticated {
+            color: var(--accent-bright);
+            font-weight: 400;
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 12px 20px;
+            background: var(--ocean);
+            color: var(--text-primary);
+            border: 1px solid var(--accent);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .auth-btn:hover {
+            background: var(--accent);
+            color: var(--midnight-black);
+            box-shadow: 0 0 12px rgba(91, 155, 213, 0.4);
+        }
+
+        .auth-btn:active {
+            background: var(--ocean-light);
+        }
+
+        .auth-btn.authenticated {
+            background: transparent;
+            border-color: var(--success);
+            color: var(--success);
+            cursor: default;
+        }
+
+        .auth-status {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 10px;
+            font-weight: 400;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .auth-status.authenticated {
+            color: var(--success);
+        }
+
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--navy);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .email-header {
+            padding: 24px 32px;
+            border-bottom: 2px solid var(--border);
+            background: var(--navy-dark);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .label-filter-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: 16px;
+        }
+
+        .label-select {
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+            background-color: var(--navy-dark);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        .label-select:hover {
+            border-color: var(--accent);
+            background: var(--ocean);
+        }
+
+        .label-select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 8px rgba(91, 155, 213, 0.3);
+        }
+
+        .threshold-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .threshold-slider {
+            width: 150px;
+            height: 4px;
+            background: var(--navy-dark);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            transition: all 0.2s ease;
+        }
+
+        .threshold-slider:hover {
+            background: var(--ocean);
+        }
+
+        .threshold-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(91, 155, 213, 0.6);
+            transition: all 0.2s ease;
+        }
+
+        .threshold-slider::-webkit-slider-thumb:hover {
+            background: var(--accent-bright);
+            box-shadow: 0 0 12px rgba(91, 155, 213, 0.8);
+        }
+
+        .threshold-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 8px rgba(91, 155, 213, 0.6);
+            transition: all 0.2s ease;
+        }
+
+        .threshold-slider::-moz-range-thumb:hover {
+            background: var(--accent-bright);
+            box-shadow: 0 0 12px rgba(91, 155, 213, 0.8);
+        }
+
+        .threshold-value {
+            font-size: 13px;
+            color: var(--text-secondary);
+            min-width: 40px;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        .email-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .email-count {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .email-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent);
+            transition: all 0.2s ease;
+        }
+
+        .archive-btn {
+            padding: 12px 24px;
+            background: var(--ocean);
+            color: var(--text-primary);
+            border: 1px solid var(--accent);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .archive-btn:hover:not(:disabled) {
+            background: var(--accent);
+            color: var(--midnight-black);
+            box-shadow: 0 0 12px rgba(91, 155, 213, 0.4);
+        }
+
+        .archive-btn:active:not(:disabled) {
+            background: var(--ocean-light);
+        }
+
+        .archive-btn:disabled {
+            background: var(--navy-dark);
+            color: var(--text-tertiary);
+            border-color: var(--border);
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            padding: 20px 32px;
+            background: var(--navy-dark);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .account-progress {
+            margin-bottom: 12px;
+        }
+
+        .account-progress:last-child {
+            margin-bottom: 0;
+        }
+
+        .account-progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .account-progress-name {
+            font-weight: 500;
+            color: var(--text-primary);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .account-progress-stats {
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: var(--navy);
+            overflow: hidden;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.5s ease;
+            box-shadow: 0 0 8px rgba(91, 155, 213, 0.6);
+        }
+
+        .progress-bar.loading {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar.loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent
+            );
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        .email-list {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .loading-more {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-tertiary);
+            font-size: 13px;
+            font-weight: 400;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .loading-more-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--navy-dark);
+            border-top-color: var(--accent);
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .email-item {
+            padding: 20px 32px;
+            border-bottom: 2px solid var(--border);
+            display: grid;
+            grid-template-columns: 140px 1fr 160px;
+            grid-template-rows: auto auto auto auto auto;
+            gap: 6px 20px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+            background: var(--navy);
+        }
+
+        .email-item:hover {
+            background: var(--ocean);
+            border-left: 4px solid var(--accent);
+            padding-left: 28px;
+        }
+
+        .email-item-checkbox {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #1a73e8;
+            z-index: 10;
+        }
+
+        .email-item.has-checkbox {
+            padding-left: 48px;
+        }
+
+        .email-field-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .email-field-value {
+            font-size: 14px;
+            color: var(--text-primary);
+            font-weight: 400;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .email-sender-label {
+            grid-column: 1;
+            grid-row: 1;
+        }
+
+        .email-sender-value {
+            grid-column: 1;
+            grid-row: 2;
+            font-weight: 500;
+            color: var(--accent-bright);
+        }
+
+        .email-subject-label {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .email-subject-value {
+            grid-column: 2;
+            grid-row: 2;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 15px;
+        }
+
+        .email-time-label {
+            grid-column: 3;
+            grid-row: 1;
+            text-align: right;
+        }
+
+        .email-time-value {
+            grid-column: 3;
+            grid-row: 2;
+            text-align: right;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .email-to-label {
+            grid-column: 1;
+            grid-row: 3;
+        }
+
+        .email-to-value {
+            grid-column: 1;
+            grid-row: 4;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .email-snippet {
+            grid-column: 2 / -1;
+            grid-row: 3 / 5;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            -webkit-box-orient: vertical;
+            font-weight: 300;
+            padding-left: 20px;
+            border-left: 1px solid var(--border);
+        }
+
+        .label-badge {
+            display: inline-block;
+            color: var(--text-primary);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 5px 10px;
+            margin-left: 6px;
+            margin-top: 4px;
+            vertical-align: middle;
+            transition: all 0.2s ease;
+            background: var(--ocean);
+            border: 1px solid var(--accent);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .label-badge:hover:not(.loading) {
+            background: var(--accent);
+            color: var(--midnight-black);
+            box-shadow: 0 0 12px rgba(91, 155, 213, 0.6);
+            border-color: var(--accent-bright);
+        }
+
+        .label-badge.add-button {
+            background: var(--navy-dark);
+            border: 2px solid var(--accent-bright);
+            color: var(--accent-bright);
+            font-weight: 600;
+            opacity: 0.3;
+            border-style: dashed;
+        }
+
+        .label-badge.add-button:hover:not(.loading) {
+            opacity: 0.6;
+            background-color: #1a73e8;
+        }
+
+        .label-badge.loading {
+            opacity: 0.6;
+            cursor: wait;
+            pointer-events: none;
+            min-width: fit-content;
+            white-space: nowrap;
+        }
+
+        .label-badge .delete-icon {
+            margin-left: 4px;
+            cursor: pointer;
+            opacity: 0.8;
+            font-weight: bold;
+            font-size: 18px;
+            line-height: 1;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .label-badge .delete-icon:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .label-badge.loading .delete-icon {
+            pointer-events: none;
+        }
+
+        .label-badge .loading-spinner {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-left: 4px;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-tertiary);
+            padding: 60px 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            opacity: 0.4;
+        }
+
+        .inbox-zero {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 40px;
+            position: relative;
+            overflow: hidden;
+            background: 
+                radial-gradient(circle at 50% 50%, rgba(91, 155, 213, 0.15) 0%, transparent 70%),
+                radial-gradient(circle at 20% 30%, rgba(76, 175, 80, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 193, 7, 0.1) 0%, transparent 50%);
+        }
+
+        .inbox-zero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: 
+                radial-gradient(circle, rgba(91, 155, 213, 0.1) 1px, transparent 1px),
+                radial-gradient(circle, rgba(76, 175, 80, 0.08) 1px, transparent 1px);
+            background-size: 50px 50px, 80px 80px;
+            animation: sparkle 20s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes sparkle {
+            0% { transform: rotate(0deg) translate(0, 0); }
+            100% { transform: rotate(360deg) translate(0, 0); }
+        }
+
+        .inbox-zero-crown {
+            font-size: 120px;
+            margin-bottom: 32px;
+            animation: float 3s ease-in-out infinite;
+            filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
+            position: relative;
+            z-index: 1;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(-5deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+        }
+
+        .inbox-zero-title {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 25%, #4caf50 50%, #5b9bd5 75%, #ffd700 100%);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+            animation: gradient-shift 4s ease infinite;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .inbox-zero-subtitle {
+            font-size: 24px;
+            color: var(--accent-bright);
+            margin-bottom: 8px;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+
+        .inbox-zero-message {
+            font-size: 18px;
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 600px;
+            line-height: 1.8;
+            position: relative;
+            z-index: 1;
+            margin-top: 24px;
+        }
+
+        .inbox-zero-stats {
+            display: flex;
+            gap: 40px;
+            margin-top: 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .inbox-zero-stat {
+            text-align: center;
+            padding: 20px 30px;
+            background: rgba(91, 155, 213, 0.1);
+            border: 1px solid rgba(91, 155, 213, 0.3);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .inbox-zero-stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent-bright);
+            margin-bottom: 8px;
+        }
+
+        .inbox-zero-stat-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #ffd700;
+            animation: confetti-fall 3s linear infinite;
+            opacity: 0.8;
+            z-index: 10;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        .loading {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 400;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .error {
+            padding: 16px 24px;
+            background: var(--navy-dark);
+            color: var(--danger);
+            margin: 16px 32px;
+            border-left: 3px solid var(--danger);
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(10, 14, 39, 0.9);
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .modal {
+            background: var(--navy);
+            width: 100%;
+            max-width: 900px;
+            max-height: 90vh;
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            animation: slideUp 0.2s ease;
+            border: 1px solid var(--border);
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(10px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 28px 32px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-shrink: 0;
+            background: var(--navy-dark);
+        }
+
+        .modal-header-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: 400;
+            color: var(--accent-bright);
+            margin-bottom: 16px;
+            word-wrap: break-word;
+            letter-spacing: 1px;
+            line-height: 1.4;
+        }
+
+        .modal-meta {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .modal-meta-row {
+            margin-bottom: 10px;
+        }
+
+        .modal-meta-label {
+            font-weight: 500;
+            display: inline-block;
+            min-width: 60px;
+            color: var(--text-primary);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: 1px solid var(--border);
+            font-size: 20px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-left: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: white;
+        }
+
+        .modal-body {
+            padding: 32px;
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+            background: var(--navy);
+        }
+
+        .modal-body-tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 28px;
+            gap: 2px;
+        }
+
+        .modal-tab {
+            padding: 12px 24px;
+            background: var(--navy-dark);
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .modal-tab.active {
+            color: var(--accent-bright);
+            border-bottom-color: var(--accent);
+            background: var(--navy);
+        }
+
+        .modal-tab:hover:not(.active) {
+            background: var(--ocean);
+            color: var(--text-primary);
+        }
+
+        .modal-content {
+            font-size: 15px;
+            line-height: 1.8;
+            color: var(--text-primary);
+            font-weight: 300;
+        }
+
+        .modal-content-html {
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        .modal-content-html img {
+            max-width: 100%;
+            height: auto;
+            margin: 16px 0;
+            border: 1px solid var(--border);
+        }
+
+        .modal-content-text {
+            white-space: pre-wrap;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: var(--navy-dark);
+            padding: 24px;
+            border: 1px solid var(--border);
+            font-weight: 300;
+        }
+
+        .modal-loading {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 400;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .modal-error {
+            padding: 16px 24px;
+            background: var(--navy-dark);
+            color: var(--danger);
+            margin: 16px 0;
+            border-left: 3px solid var(--danger);
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <div class="logo">Filterbox</div>
+        </div>
+
+        <div class="main-container">
+            <div class="sidebar">
+                <div class="auth-section">
+                    <div class="auth-section-title">Accounts</div>
+                    <div v-if="accounts.length === 0" style="color: #5f6368; font-size: 15px;">
+                        No accounts found. Add credentials-1.json through credentials-9.json to src/gmail/credentials/
+                    </div>
+                    <div v-for="account in accounts" :key="account.account_id" 
+                         :class="['account-item', { authenticated: account.authenticated }]">
+                        <div class="account-header">
+                            <div class="account-name">Account {{ account.account_id.replace('account', '') }}</div>
+                            <span v-if="account.authenticated" style="color: #137333; font-size: 15px;">✓</span>
+                        </div>
+                        <div :class="['account-email', { authenticated: account.authenticated }]">
+                            {{ account.authenticated ? (account.email || 'Authenticated') : 'Not authenticated' }}
+                        </div>
+                        <button v-if="!account.authenticated" 
+                                class="auth-btn" 
+                                @click="startAuth(account.account_id)">
+                            Sign in
+                        </button>
+                        <div v-else class="auth-status authenticated">Authenticated</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <div class="email-header">
+                    <div class="email-header-left">
+                        <input type="checkbox" 
+                               class="email-checkbox" 
+                               :checked="selectAllChecked"
+                               :indeterminate="selectAllIndeterminate"
+                               @change="toggleSelectAll">
+                        <div class="email-count">{{ emailCountText }}</div>
+                        <label style="display: flex; align-items: center; gap: 8px; margin-left: 16px; font-size: 13px; color: var(--text-secondary); cursor: pointer; font-weight: 400; letter-spacing: 0.5px; text-transform: uppercase;">
+                            <input type="checkbox" 
+                                   v-model="showOnlyUnlabeled" 
+                                   style="cursor: pointer; width: 18px; height: 18px; accent-color: var(--accent);">
+                            <span>Show only unlabeled</span>
+                        </label>
+                        <div class="label-filter-controls">
+                            <select class="label-select" v-model="selectedLabelFilter" @change="onLabelFilterChange">
+                                <option value="">Filter by label...</option>
+                                <option v-for="label in labelTypes" :key="label.name" :value="label.name">
+                                    {{ label.name }}
+                                </option>
+                            </select>
+                            <div class="threshold-control" v-show="selectedLabelFilter">
+                                <input type="range" 
+                                       class="threshold-slider" 
+                                       v-model.number="labelThreshold"
+                                       min="0" 
+                                       max="100">
+                                <span class="threshold-value">{{ labelThreshold }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="archive-btn" @click="selectLabeledEmails">Select Labeled</button>
+                        <button class="archive-btn" 
+                                :disabled="selectedEmails.size === 0"
+                                @click="archiveSelectedEmails">
+                            Archive
+                        </button>
+                    </div>
+                </div>
+                <div class="progress-container" v-show="showProgress">
+                    <div v-for="(progress, accountId) in accountProgress" :key="accountId" class="account-progress">
+                        <div class="account-progress-header">
+                            <span class="account-progress-name">
+                                {{ getAccountEmail(accountId) }}
+                            </span>
+                            <span class="account-progress-stats" v-html="getProgressStats(progress)"></span>
+                        </div>
+                        <div :class="['progress-bar', { loading: isProgressLoading(progress) }]">
+                            <div class="progress-fill" 
+                                 :style="{
+                                     width: isProgressLoading(progress) ? '0' : Math.min(progress.percent || 0, 100) + '%',
+                                     backgroundColor: progress.error ? '#ea4335' : '#1a73e8'
+                                 }">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="email-list" @scroll="handleScroll" ref="emailListRef">
+                    <!-- Loading state -->
+                    <div v-if="isLoading && allEmails.length === 0" class="loading">Loading emails...</div>
+                    
+                    <!-- No authenticated accounts -->
+                    <div v-else-if="!hasAuthenticatedAccounts" class="empty-state">
+                        <div class="empty-state-icon">🔒</div>
+                        <div>Please sign in to at least one account to view emails</div>
+                    </div>
+                    
+                    <!-- Inbox Zero -->
+                    <div v-else-if="allEmails.length === 0 && filteredEmails.length === 0" class="inbox-zero">
+                        <div class="inbox-zero-crown">👑</div>
+                        <div class="inbox-zero-title">Inbox Zero</div>
+                        <div class="inbox-zero-subtitle">You Are World Emperor</div>
+                        <div class="inbox-zero-message">
+                            All your emails have been conquered. Your inbox is pristine, your mind is clear, and your productivity knows no bounds. This is what victory looks like.
+                        </div>
+                        <div class="inbox-zero-stats">
+                            <div class="inbox-zero-stat">
+                                <div class="inbox-zero-stat-value">0</div>
+                                <div class="inbox-zero-stat-label">Emails</div>
+                            </div>
+                            <div class="inbox-zero-stat">
+                                <div class="inbox-zero-stat-value">{{ authenticatedAccountsCount }}</div>
+                                <div class="inbox-zero-stat-label">Account{{ authenticatedAccountsCount !== 1 ? 's' : '' }}</div>
+                            </div>
+                            <div class="inbox-zero-stat">
+                                <div class="inbox-zero-stat-value">∞</div>
+                                <div class="inbox-zero-stat-label">Power</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Empty filtered results -->
+                    <div v-else-if="filteredEmails.length === 0" class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div>{{ emptyMessage }}</div>
+                    </div>
+                    
+                    <!-- Email list -->
+                    <template v-else>
+                        <div v-for="email in filteredEmails" 
+                             :key="email.id"
+                             class="email-item has-checkbox"
+                             @click="openEmailModal(email.id, email.account_id)">
+                            <input type="checkbox" 
+                                   class="email-item-checkbox"
+                                   :checked="selectedEmails.includes(email.id)"
+                                   @change="toggleEmailSelection(email.id, $event.target.checked)"
+                                   @click.stop>
+                            <div class="email-field-label email-sender-label">FROM</div>
+                            <div class="email-field-value email-sender-value" :title="parseSender(email.from || 'Unknown')">
+                                {{ parseSender(email.from || 'Unknown') }}
+                            </div>
+                            <div class="email-field-label email-subject-label">SUBJECT</div>
+                            <div class="email-field-value email-subject-value" :title="email.subject || '(No subject)'">
+                                {{ email.subject || '(No subject)' }}
+                            </div>
+                            <div class="email-field-label email-time-label">TIME</div>
+                            <div class="email-field-value email-time-value">{{ formatDate(email.date || email.internalDate) }}</div>
+                            <div class="email-field-label email-to-label">TO</div>
+                            <div class="email-field-value email-to-value" :title="email.to || ''">
+                                {{ email.to || '' }}
+                            </div>
+                            <div class="email-snippet">{{ email.snippet || '' }}</div>
+                            <div style="grid-column: 1 / -1; grid-row: 5; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);">
+                                <span v-for="labelType in labelTypes" 
+                                      :key="labelType.name"
+                                      :class="['label-badge', 
+                                               { 
+                                                   'add-button': !hasLabel(email.label_names || [], labelType.name),
+                                                   'loading': loadingLabels[`${email.id}-${labelType.name}`]
+                                               }]"
+                                      @click.stop="toggleLabel(email, labelType.name, $event)"
+                                      :title="`Click to ${hasLabel(email.label_names || [], labelType.name) ? 'remove' : 'add'} ${labelType.name} label`">
+                                    <template v-if="hasLabel(email.label_names || [], labelType.name)">
+                                        {{ labelType.name }}
+                                        <span class="delete-icon" 
+                                              @click.stop="removeLabelFromList(email.id, email.account_id, labelType.name, $event)"
+                                              :title="`Remove ${labelType.name} label`">×</span>
+                                    </template>
+                                    <template v-else>
+                                        + {{ labelType.name }}{{ getScoreText(email, labelType.name) }}
+                                    </template>
+                                    <span v-if="loadingLabels[`${email.id}-${labelType.name}`]" class="loading-spinner"></span>
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- Load more indicator -->
+                        <div v-if="hasMoreEmails && isLoading" class="loading-more">
+                            <span class="loading-more-spinner"></span>Loading more emails...
+                        </div>
+                        <div v-else-if="hasMoreEmails" class="loading-more" id="loadMoreTrigger"></div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email Modal -->
+        <div :class="['modal-overlay', { active: showModal }]" @click.self="closeEmailModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <div class="modal-header-content">
+                        <div class="modal-title">{{ currentModalEmail?.subject || 'Loading...' }}</div>
+                        <div class="modal-meta" v-if="currentModalEmail">
+                            <div class="modal-meta-row">
+                                <span class="modal-meta-label">From:</span> {{ parseSender(currentModalEmail.from || 'Unknown') }}
+                            </div>
+                            <div class="modal-meta-row" v-if="currentModalEmail.to">
+                                <span class="modal-meta-label">To:</span> {{ currentModalEmail.to }}
+                            </div>
+                            <div class="modal-meta-row" v-if="currentModalEmail.cc">
+                                <span class="modal-meta-label">Cc:</span> {{ currentModalEmail.cc }}
+                            </div>
+                            <div class="modal-meta-row">
+                                <span class="modal-meta-label">Date:</span> {{ formatDate(currentModalEmail.date || currentModalEmail.internalDate) }}
+                            </div>
+                            <div class="modal-meta-row">
+                                <span class="modal-meta-label">Labels:</span>
+                                <span v-for="labelType in labelTypes" 
+                                      :key="labelType.name"
+                                      :class="['label-badge', 
+                                               { 
+                                                   'add-button': !hasLabel(currentModalEmail.label_names || [], labelType.name),
+                                                   'loading': loadingLabels[`modal-${currentModalEmail.id}-${labelType.name}`]
+                                               }]"
+                                      @click="toggleLabel(currentModalEmail, labelType.name, $event)"
+                                      :title="`Click to ${hasLabel(currentModalEmail.label_names || [], labelType.name) ? 'remove' : 'add'} ${labelType.name} label`"
+                                      style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;">
+                                    <template v-if="hasLabel(currentModalEmail.label_names || [], labelType.name)">
+                                        {{ labelType.name }}
+                                        <span class="delete-icon" 
+                                              @click.stop="removeLabel(currentModalEmail.id, currentModalEmail.account_id, labelType.name, $event)"
+                                              :title="`Remove ${labelType.name} label`">×</span>
+                                    </template>
+                                    <template v-else>
+                                        + {{ labelType.name }}{{ getScoreText(currentModalEmail, labelType.name) }}
+                                    </template>
+                                    <span v-if="loadingLabels[`modal-${currentModalEmail.id}-${labelType.name}`]" class="loading-spinner"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="modal-close" @click="closeEmailModal" aria-label="Close">×</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="modalLoading" class="modal-loading">Loading email...</div>
+                    <div v-else-if="modalError" class="modal-error">{{ modalError }}</div>
+                    <div v-else-if="currentModalEmail">
+                        <div class="modal-body-tabs" v-if="hasHtml || hasText">
+                            <button v-if="hasHtml" 
+                                    :class="['modal-tab', { active: modalActiveTab === 'html' }]"
+                                    @click="modalActiveTab = 'html'">
+                                HTML
+                            </button>
+                            <button v-if="hasText" 
+                                    :class="['modal-tab', { active: modalActiveTab === 'text' }]"
+                                    @click="modalActiveTab = 'text'">
+                                Plain Text
+                            </button>
+                        </div>
+                        <div class="modal-content">
+                            <div v-if="hasHtml && modalActiveTab === 'html'" 
+                                 class="modal-content-html" 
+                                 v-html="currentModalEmail.body_html">
+                            </div>
+                            <div v-if="hasText && modalActiveTab === 'text'" 
+                                 class="modal-content-text">
+                                {{ currentModalEmail.body }}
+                            </div>
+                            <p v-if="!hasHtml && !hasText" style="color: #5f6368; font-style: italic;">No content available</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    accounts: [],
+                    allEmails: [],
+                    nextPageToken: null,
+                    totalEmailCount: 0,
+                    isLoading: false,
+                    hasMoreEmails: true,
+                    BATCH_SIZE: 200,
+                    accountCounts: {},
+                    selectedEmails: new Set(),
+                    showOnlyUnlabeled: false,
+                    selectedLabelFilter: '',
+                    labelThreshold: 50,
+                    labelTypes: [],
+                    accountProgress: {},
+                    accountStreams: {},
+                    showProgress: false,
+                    showModal: false,
+                    currentModalEmail: null,
+                    modalLoading: false,
+                    modalError: null,
+                    modalActiveTab: 'html',
+                    loadingLabels: {},
+                    emailListRef: null
+                };
+            },
+            computed: {
+                hasAuthenticatedAccounts() {
+                    return this.accounts.some(a => a.authenticated);
+                },
+                authenticatedAccountsCount() {
+                    return this.accounts.filter(a => a.authenticated).length;
+                },
+                filteredEmails() {
+                    let emails = this.allEmails;
+                    
+                    // Filter by unlabeled
+                    if (this.showOnlyUnlabeled) {
+                        const customLabelNames = this.labelTypes.map(lt => lt.name.toLowerCase());
+                        emails = emails.filter(email => {
+                            const labelNames = email.label_names || [];
+                            const hasCustomLabel = labelNames.some(labelName => 
+                                customLabelNames.includes(labelName.toLowerCase())
+                            );
+                            return !hasCustomLabel;
+                        });
+                    }
+                    
+                    // Filter by selected label and threshold
+                    if (this.selectedLabelFilter) {
+                        emails = emails.filter(email => {
+                            const effectiveScore = this.getEffectiveScore(email, this.selectedLabelFilter);
+                            // If effective score is 0, only show if threshold is 0
+                            if (effectiveScore === 0) {
+                                return this.labelThreshold === 0;
+                            }
+                            // If no score available (score is -1), only show if threshold is 0
+                            if (effectiveScore === -1) {
+                                return this.labelThreshold === 0;
+                            }
+                            // Otherwise check if score meets threshold
+                            return effectiveScore >= this.labelThreshold;
+                        });
+                    }
+                    
+                    // Sort emails
+                    const sorted = [...emails];
+                    if (this.selectedLabelFilter) {
+                        // Sort by score ascending for the selected label
+                        sorted.sort((a, b) => {
+                            const scoreA = this.getEffectiveScore(a, this.selectedLabelFilter);
+                            const scoreB = this.getEffectiveScore(b, this.selectedLabelFilter);
+                            return scoreA - scoreB;
+                        });
+                    } else {
+                        // Sort by time (newest first)
+                        sorted.sort((a, b) => {
+                            const dateA = parseInt(a.internalDate || 0);
+                            const dateB = parseInt(b.internalDate || 0);
+                            return dateB - dateA;
+                        });
+                    }
+                    
+                    return sorted;
+                },
+                emailCountText() {
+                    if (this.totalEmailCount > 0) {
+                        return `Showing ${this.filteredEmails.length} of ${this.totalEmailCount} emails`;
+                    }
+                    return this.filteredEmails.length > 0 ? `${this.filteredEmails.length} emails` : 'No emails';
+                },
+                emptyMessage() {
+                    if (this.showOnlyUnlabeled) {
+                        return 'No unlabeled emails found';
+                    } else if (this.selectedLabelFilter) {
+                        return `No emails found with ${this.selectedLabelFilter} score ≥ ${this.labelThreshold}%`;
+                    }
+                    return 'No emails found';
+                },
+                selectAllChecked() {
+                    if (this.filteredEmails.length === 0) return false;
+                    return this.filteredEmails.every(email => this.selectedEmails.includes(email.id));
+                },
+                selectAllIndeterminate() {
+                    if (this.filteredEmails.length === 0) return false;
+                    const selectedCount = this.filteredEmails.filter(email => this.selectedEmails.includes(email.id)).length;
+                    return selectedCount > 0 && selectedCount < this.filteredEmails.length;
+                },
+                hasHtml() {
+                    return this.currentModalEmail?.body_html?.trim();
+                },
+                hasText() {
+                    return this.currentModalEmail?.body?.trim();
+                }
+            },
+            methods: {
+                async loadLabels() {
+                    try {
+                        const response = await fetch('/api/labels');
+                        const data = await response.json();
+                        this.labelTypes = data.labels.map(label => ({ name: label.name }));
+                    } catch (error) {
+                        console.error('Error loading labels:', error);
+                        this.labelTypes = [
+                            { name: 'marketing' },
+                            { name: 'noti' },
+                            { name: 'event' },
+                            { name: 'newsletter' }
+                        ];
+                    }
+                },
+                onLabelFilterChange() {
+                    if (this.selectedLabelFilter) {
+                        this.labelThreshold = 50;
+                    } else {
+                        this.labelThreshold = 0;
+                    }
+                },
+                async loadAccounts() {
+                    try {
+                        const response = await fetch('/api/accounts');
+                        const data = await response.json();
+                        this.accounts = data.accounts;
+                    } catch (error) {
+                        console.error('Error loading accounts:', error);
+                    }
+                },
+                async startAuth(accountId) {
+                    try {
+                        const response = await fetch(`/api/auth/start?account_id=${accountId}`);
+                        const data = await response.json();
+                        window.location.href = data.authorization_url;
+                    } catch (error) {
+                        this.showError('Failed to start authentication: ' + error.message);
+                    }
+                },
+                showError(message) {
+                    // Error display handled by computed properties
+                    console.error(message);
+                },
+                async initializeEmails() {
+                    this.allEmails = [];
+                    this.nextPageToken = null;
+                    this.hasMoreEmails = true;
+                    
+                    const authenticatedAccounts = this.accounts.filter(a => a.authenticated);
+                    
+                    if (authenticatedAccounts.length === 0) {
+                        return;
+                    }
+                    
+                    // Fetch email counts
+                    try {
+                        const countsResponse = await fetch('/api/emails/account-counts');
+                        if (countsResponse.ok) {
+                            const countsData = await countsResponse.json();
+                            this.accountCounts = countsData.account_counts || {};
+                            this.totalEmailCount = Object.values(this.accountCounts).reduce((sum, count) => sum + count, 0);
+                        }
+                    } catch (error) {
+                        console.error('Error loading email counts:', error);
+                    }
+                    
+                    // Initialize progress
+                    this.accountProgress = {};
+                    authenticatedAccounts.forEach(account => {
+                        const totalCount = this.accountCounts[account.account_id] || 0;
+                        const batchTotal = Math.min(totalCount, this.BATCH_SIZE);
+                        this.accountProgress[account.account_id] = {
+                            current: 0,
+                            total: batchTotal,
+                            totalCount: totalCount,
+                            percent: 0
+                        };
+                    });
+                    
+                    this.showProgress = true;
+                    await this.loadMoreEmails(true);
+                },
+                async loadMoreEmails(isInitial = false) {
+                    if (this.isLoading || (!this.hasMoreEmails && !isInitial)) {
+                        return;
+                    }
+                    
+                    this.isLoading = true;
+                    
+                    if (isInitial) {
+                        this.accountProgress = {};
+                        this.allEmails = [];
+                    }
+                    
+                    try {
+                        if (isInitial) {
+                            await this.loadEmailsStream();
+                        } else {
+                            await this.loadEmailsRegular();
+                        }
+                    } catch (error) {
+                        console.error('Error loading emails:', error);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+                async loadEmailsStream() {
+                    const authenticatedAccounts = this.accounts.filter(a => a.authenticated);
+                    
+                    if (authenticatedAccounts.length === 0) {
+                        return;
+                    }
+                    
+                    this.showProgress = true;
+                    
+                    // Initialize progress for all accounts
+                    authenticatedAccounts.forEach(account => {
+                        const inboxCount = this.accountCounts[account.account_id] || this.BATCH_SIZE;
+                        const maxResults = Math.min(inboxCount, this.BATCH_SIZE);
+                        if (!this.accountProgress[account.account_id]) {
+                            this.accountProgress[account.account_id] = {
+                                current: 0,
+                                total: maxResults,
+                                totalCount: inboxCount,
+                                percent: 0
+                            };
+                        }
+                    });
+                    
+                    // Start streaming from all accounts
+                    const streamPromises = authenticatedAccounts.map(account => {
+                        return new Promise((resolve, reject) => {
+                            const inboxCount = this.accountCounts[account.account_id] || this.BATCH_SIZE;
+                            const maxResults = Math.min(inboxCount, this.BATCH_SIZE);
+                            let url = `/api/emails/stream?account_id=${encodeURIComponent(account.account_id)}&max_results=${maxResults}`;
+                            
+                            if (this.nextPageToken) {
+                                const tokens = this.nextPageToken.split(',');
+                                for (const tokenPair of tokens) {
+                                    if (tokenPair.includes(':')) {
+                                        const [accId, token] = tokenPair.split(':', 2);
+                                        if (accId === account.account_id) {
+                                            url += `&page_token=${encodeURIComponent(token)}`;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            const eventSource = new EventSource(url);
+                            this.accountStreams[account.account_id] = eventSource;
+                            
+                            const accountEmails = [];
+                            let accountNextToken = null;
+                            let streamComplete = false;
+                            
+                            eventSource.onmessage = (event) => {
+                                try {
+                                    const data = JSON.parse(event.data);
+                                    
+                                    if (data.type === 'progress') {
+                                        const existing = this.accountProgress[data.account_id] || {};
+                                        const progressTotal = existing.total || data.total || 0;
+                                        this.accountProgress[data.account_id] = {
+                                            current: data.current || 0,
+                                            total: progressTotal,
+                                            totalCount: existing.totalCount || 0,
+                                            percent: progressTotal > 0 ? Math.min((data.current || 0) / progressTotal * 100, 100) : 0
+                                        };
+                                    } else if (data.type === 'email') {
+                                        const email = data.email;
+                                        
+                                        if (!this.allEmails.find(e => e.id === email.id)) {
+                                            this.allEmails.push(email);
+                                            accountEmails.push(email);
+                                        }
+                                    } else if (data.type === 'complete') {
+                                        streamComplete = true;
+                                        accountNextToken = data.next_page_token;
+                                        eventSource.close();
+                                        resolve({
+                                            account_id: account.account_id,
+                                            emails: accountEmails,
+                                            next_token: accountNextToken
+                                        });
+                                    } else if (data.type === 'error') {
+                                        streamComplete = true;
+                                        eventSource.close();
+                                        this.accountProgress[account.account_id] = {
+                                            ...this.accountProgress[account.account_id],
+                                            error: data.message
+                                        });
+                                        reject(new Error(data.message || 'Unknown error'));
+                                    }
+                                } catch (error) {
+                                    console.error('Error parsing stream data:', error);
+                                }
+                            };
+                            
+                            eventSource.onerror = () => {
+                                eventSource.close();
+                                if (!streamComplete) {
+                                    this.accountProgress[account.account_id] = {
+                                        ...this.accountProgress[account.account_id],
+                                        error: 'Connection error'
+                                    });
+                                    reject(new Error('Stream connection error'));
+                                }
+                            };
+                            
+                            setTimeout(() => {
+                                if (!streamComplete) {
+                                    eventSource.close();
+                                    reject(new Error('Stream timeout'));
+                                }
+                            }, 60000);
+                        });
+                    });
+                    
+                    try {
+                        const results = await Promise.allSettled(streamPromises);
+                        
+                        const accountNextTokens = {};
+                        for (const result of results) {
+                            if (result.status === 'fulfilled' && result.value.next_token) {
+                                accountNextTokens[result.value.account_id] = result.value.next_token;
+                            }
+                        }
+                        
+                        if (Object.keys(accountNextTokens).length > 0) {
+                            this.nextPageToken = Object.entries(accountNextTokens)
+                                .map(([accId, token]) => `${accId}:${token}`)
+                                .join(',');
+                            this.hasMoreEmails = true;
+                        } else {
+                            this.nextPageToken = null;
+                            this.hasMoreEmails = false;
+                        }
+                        
+                        // Sort emails by date
+                        this.allEmails.sort((a, b) => {
+                            const dateA = parseInt(a.internalDate || 0);
+                            const dateB = parseInt(b.internalDate || 0);
+                            return dateB - dateA;
+                        });
+                        
+                        // Mark all as complete
+                        authenticatedAccounts.forEach(account => {
+                            if (this.accountProgress[account.account_id]) {
+                                const progress = this.accountProgress[account.account_id];
+                                this.accountProgress[account.account_id] = {
+                                    ...progress,
+                                    percent: 100,
+                                    current: progress.total || progress.totalCount || 0
+                                };
+                            }
+                        });
+                        
+                        // Hide progress after delay
+                        setTimeout(() => {
+                            this.showProgress = false;
+                        }, 2000);
+                    } catch (error) {
+                        console.error('Error in email streams:', error);
+                    }
+                },
+                async loadEmailsRegular() {
+                    const PAGINATION_SIZE = 5;
+                    
+                    const accountTokens = {};
+                    if (this.nextPageToken) {
+                        const tokens = this.nextPageToken.split(',');
+                        for (const tokenPair of tokens) {
+                            if (tokenPair.includes(':')) {
+                                const [accId, token] = tokenPair.split(':', 2);
+                                accountTokens[accId] = token;
+                            }
+                        }
+                    }
+                    
+                    const authenticatedAccounts = this.accounts.filter(a => a.authenticated);
+                    const accountsToLoad = authenticatedAccounts.filter(account => 
+                        accountTokens[account.account_id] || !this.nextPageToken
+                    );
+                    
+                    if (accountsToLoad.length === 0) {
+                        this.hasMoreEmails = false;
+                        return;
+                    }
+                    
+                    this.showProgress = true;
+                    
+                    // Initialize progress for pagination
+                    accountsToLoad.forEach(account => {
+                        const existing = this.accountProgress[account.account_id] || {};
+                        const currentLoaded = existing.current || existing.total || 0;
+                        const newTotal = currentLoaded + PAGINATION_SIZE;
+                        
+                        this.accountProgress[account.account_id] = {
+                            current: currentLoaded,
+                            total: newTotal,
+                            totalCount: existing.totalCount || 0,
+                            percent: 0,
+                            paginationStart: currentLoaded
+                        };
+                    });
+                    
+                    // Load more emails from each account
+                    const streamPromises = accountsToLoad.map(account => {
+                        return new Promise((resolve, reject) => {
+                            const accountToken = accountTokens[account.account_id];
+                            if (!accountToken && this.nextPageToken) {
+                                resolve({
+                                    account_id: account.account_id,
+                                    emails: [],
+                                    next_token: null
+                                });
+                                return;
+                            }
+                            
+                            let url = `/api/emails/stream?account_id=${encodeURIComponent(account.account_id)}&max_results=${PAGINATION_SIZE}`;
+                            if (accountToken) {
+                                url += `&page_token=${encodeURIComponent(accountToken)}`;
+                            }
+                            
+                            const eventSource = new EventSource(url);
+                            const accountEmails = [];
+                            let accountNextToken = null;
+                            let streamComplete = false;
+                            
+                            eventSource.onmessage = (event) => {
+                                try {
+                                    const data = JSON.parse(event.data);
+                                    
+                                    if (data.type === 'progress') {
+                                        const existing = this.accountProgress[data.account_id] || {};
+                                        const paginationStart = existing.paginationStart !== undefined ? existing.paginationStart : (existing.current || 0);
+                                        const progressInBatch = data.current || 0;
+                                        const progressTotal = existing.total || (paginationStart + PAGINATION_SIZE);
+                                        
+                                        this.accountProgress[data.account_id] = {
+                                            current: paginationStart + progressInBatch,
+                                            total: progressTotal,
+                                            totalCount: existing.totalCount || 0,
+                                            percent: progressTotal > 0 ? Math.min((paginationStart + progressInBatch) / progressTotal * 100, 100) : 0,
+                                            paginationStart: paginationStart
+                                        };
+                                    } else if (data.type === 'email') {
+                                        const email = data.email;
+                                        
+                                        if (!this.allEmails.find(e => e.id === email.id)) {
+                                            this.allEmails.push(email);
+                                            accountEmails.push(email);
+                                        }
+                                    } else if (data.type === 'complete') {
+                                        streamComplete = true;
+                                        accountNextToken = data.next_page_token;
+                                        eventSource.close();
+                                        
+                                        const existing = this.accountProgress[account.account_id] || {};
+                                        const paginationStart = existing.paginationStart !== undefined ? existing.paginationStart : (existing.current || 0);
+                                        const finalCurrent = paginationStart + accountEmails.length;
+                                        this.accountProgress[account.account_id] = {
+                                            current: finalCurrent,
+                                            total: existing.total || finalCurrent,
+                                            totalCount: existing.totalCount || 0,
+                                            percent: 100
+                                        };
+                                        
+                                        resolve({
+                                            account_id: account.account_id,
+                                            emails: accountEmails,
+                                            next_token: accountNextToken
+                                        });
+                                    } else if (data.type === 'error') {
+                                        streamComplete = true;
+                                        eventSource.close();
+                                        this.accountProgress[account.account_id] = {
+                                            ...this.accountProgress[account.account_id],
+                                            error: data.message
+                                        });
+                                        reject(new Error(data.message || 'Unknown error'));
+                                    }
+                                } catch (error) {
+                                    console.error('Error parsing stream data:', error);
+                                }
+                            };
+                            
+                            eventSource.onerror = () => {
+                                eventSource.close();
+                                if (!streamComplete) {
+                                    this.accountProgress[account.account_id] = {
+                                        ...this.accountProgress[account.account_id],
+                                        error: 'Connection error'
+                                    });
+                                    reject(new Error('Stream connection error'));
+                                }
+                            };
+                            
+                            setTimeout(() => {
+                                if (!streamComplete) {
+                                    eventSource.close();
+                                    reject(new Error('Stream timeout'));
+                                }
+                            }, 60000);
+                        });
+                    });
+                    
+                    try {
+                        const results = await Promise.allSettled(streamPromises);
+                        
+                        const accountNextTokens = {};
+                        for (const result of results) {
+                            if (result.status === 'fulfilled' && result.value.next_token) {
+                                accountNextTokens[result.value.account_id] = result.value.next_token;
+                            }
+                        }
+                        
+                        if (Object.keys(accountNextTokens).length > 0) {
+                            this.nextPageToken = Object.entries(accountNextTokens)
+                                .map(([accId, token]) => `${accId}:${token}`)
+                                .join(',');
+                            this.hasMoreEmails = true;
+                        } else {
+                            this.nextPageToken = null;
+                            this.hasMoreEmails = false;
+                        }
+                        
+                        // Sort emails by date
+                        this.allEmails.sort((a, b) => {
+                            const dateA = parseInt(a.internalDate || 0);
+                            const dateB = parseInt(b.internalDate || 0);
+                            return dateB - dateA;
+                        });
+                        
+                        // Hide progress after delay
+                        setTimeout(() => {
+                            this.showProgress = false;
+                        }, 2000);
+                    } catch (error) {
+                        console.error('Error in pagination streams:', error);
+                    }
+                },
+                handleScroll(event) {
+                    const emailList = event.target;
+                    const scrollTop = emailList.scrollTop;
+                    const scrollHeight = emailList.scrollHeight;
+                    const clientHeight = emailList.clientHeight;
+                    
+                    if (scrollHeight - scrollTop - clientHeight < 200) {
+                        if (this.hasMoreEmails && !this.isLoading) {
+                            this.loadMoreEmails(false);
+                        }
+                    }
+                },
+                getAccountEmail(accountId) {
+                    const account = this.accounts.find(a => a.account_id === accountId);
+                    return account?.email || `Account ${accountId.replace('account', '')}`;
+                },
+                getProgressStats(progress) {
+                    if (progress.error) {
+                        return `<span style="color: #c5221f;">Error</span>`;
+                    } else if (progress.totalCount > 0) {
+                        const batchTotal = progress.total || Math.min(progress.totalCount, this.BATCH_SIZE);
+                        return `${progress.current || 0} / ${batchTotal}`;
+                    } else if (this.isProgressLoading(progress)) {
+                        return `<span style="color: #5f6368;">Loading...</span>`;
+                    } else {
+                        return `${progress.current || 0} / ${progress.total || 0}`;
+                    }
+                },
+                isProgressLoading(progress) {
+                    const total = progress.totalCount || progress.total || 0;
+                    return progress.percent === 0 && !progress.error && !total;
+                },
+                parseSender(from) {
+                    const match = from.match(/^(.+?)\s*<(.+)>$/);
+                    if (match) {
+                        return match[1].trim() || match[2];
+                    }
+                    return from;
+                },
+                formatDate(dateStr) {
+                    if (!dateStr) return '';
+                    
+                    let date;
+                    if (/^\d+$/.test(dateStr)) {
+                        date = new Date(parseInt(dateStr));
+                    } else {
+                        date = new Date(dateStr);
+                    }
+                    
+                    if (isNaN(date.getTime())) {
+                        return dateStr;
+                    }
+                    
+                    return this.formatDateRelative(date);
+                },
+                formatDateRelative(date) {
+                    const now = new Date();
+                    const diffMs = now - date;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+                    
+                    if (diffMins < 1) return 'Just now';
+                    if (diffMins < 60) return `${diffMins}m ago`;
+                    if (diffHours < 24) return `${diffHours}h ago`;
+                    if (diffDays < 7) return `${diffDays}d ago`;
+                    
+                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const month = months[date.getMonth()];
+                    const day = date.getDate();
+                    const year = date.getFullYear();
+                    const currentYear = now.getFullYear();
+                    
+                    if (year === currentYear) {
+                        return `${month} ${day}`;
+                    } else {
+                        return `${month} ${day}, ${year}`;
+                    }
+                },
+                hasLabel(labelNames, labelName) {
+                    return labelNames.some(label => label.toLowerCase() === labelName.toLowerCase());
+                },
+                getScoreText(email, labelType) {
+                    const score = email.label_scores?.[labelType.name.toLowerCase()];
+                    return score !== undefined ? ` (${score}%)` : '';
+                },
+                // Get effective score for a label on an email
+                // Returns: 100 if manually labeled with this label, 0 if manually labeled with different label, model score otherwise, or -1 if no score
+                getEffectiveScore(email, labelName) {
+                    const labelNames = email.label_names || [];
+                    const labelScores = email.label_scores || {};
+                    const labelNameLower = labelName.toLowerCase();
+                    const customLabelNames = this.labelTypes.map(lt => lt.name.toLowerCase());
+                    
+                    // Check if label is manually set (counts as 100%)
+                    const hasManualLabel = labelNames.some(name => 
+                        name.toLowerCase() === labelNameLower
+                    );
+                    
+                    if (hasManualLabel) {
+                        return 100;
+                    }
+                    
+                    // Check if email has a different manual label (effective score = 0)
+                    const hasDifferentManualLabel = labelNames.some(name => 
+                        customLabelNames.includes(name.toLowerCase())
+                    );
+                    
+                    if (hasDifferentManualLabel) {
+                        return 0;
+                    }
+                    
+                    // Return model score, or -1 if no score available
+                    return labelScores[labelNameLower] ?? -1;
+                },
+                toggleEmailSelection(messageId, isChecked) {
+                    if (isChecked) {
+                        if (!this.selectedEmails.includes(messageId)) {
+                            this.selectedEmails.push(messageId);
+                        }
+                    } else {
+                        const index = this.selectedEmails.indexOf(messageId);
+                        if (index > -1) {
+                            this.selectedEmails.splice(index, 1);
+                        }
+                    }
+                },
+                toggleSelectAll(event) {
+                    const isChecked = event.target.checked;
+                    
+                    if (isChecked) {
+                        this.selectedEmails = this.filteredEmails.map(email => email.id);
+                    } else {
+                        this.selectedEmails = [];
+                    }
+                },
+                selectLabeledEmails() {
+                    const customLabelNames = this.labelTypes.map(lt => lt.name.toLowerCase());
+                    const labeledEmails = this.allEmails.filter(email => {
+                        const labelNames = email.label_names || [];
+                        return labelNames.some(labelName => 
+                            customLabelNames.includes(labelName.toLowerCase())
+                        );
+                    });
+                    
+                    this.selectedEmails = labeledEmails.map(email => email.id);
+                },
+                async archiveSelectedEmails() {
+                    if (this.selectedEmails.length === 0) {
+                        return;
+                    }
+                    
+                    const messageIds = [...this.selectedEmails];
+                    const accountIds = {};
+                    messageIds.forEach(messageId => {
+                        const email = this.allEmails.find(e => e.id === messageId);
+                        if (email) {
+                            accountIds[messageId] = email.account_id;
+                        }
+                    });
+                    
+                    const result = await Swal.fire({
+                        title: 'Archive Emails?',
+                        text: `Are you sure you want to archive ${this.selectedEmails.length} email${this.selectedEmails.length > 1 ? 's' : ''}?`,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#1a73e8',
+                        cancelButtonColor: '#5f6368',
+                        confirmButtonText: 'Archive',
+                        cancelButtonText: 'Cancel'
+                    });
+                    
+                    if (!result.isConfirmed) {
+                        return;
+                    }
+                    
+                    Swal.fire({
+                        title: 'Archiving...',
+                        text: `Archiving ${this.selectedEmails.length} email${this.selectedEmails.length > 1 ? 's' : ''}`,
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                    
+                    try {
+                        const response = await fetch('/api/emails/bulk-archive', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                message_ids: messageIds,
+                                account_ids: accountIds
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('Failed to archive emails');
+                        }
+                        
+                        const data = await response.json();
+                        
+                        // Remove archived emails
+                        const archivedIds = new Set(data.results.success);
+                        this.allEmails = this.allEmails.filter(e => !archivedIds.has(e.id));
+                        this.selectedEmails = [];
+                        
+                        if (data.failed_count > 0) {
+                            Swal.fire({
+                                title: 'Partially Complete',
+                                text: `Archived ${data.archived_count} email${data.archived_count > 1 ? 's' : ''}, ${data.failed_count} failed`,
+                                icon: 'warning'
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Success!',
+                                text: `Archived ${data.archived_count} email${data.archived_count > 1 ? 's' : ''}`,
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        }
+                    } catch (error) {
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Failed to archive emails: ' + error.message,
+                            icon: 'error'
+                        });
+                    }
+                },
+                async openEmailModal(messageId, accountId) {
+                    this.showModal = true;
+                    this.modalLoading = true;
+                    this.modalError = null;
+                    this.currentModalEmail = null;
+                    this.modalActiveTab = 'html';
+                    
+                    if (!accountId) {
+                        const email = this.allEmails.find(e => e.id === messageId);
+                        accountId = email?.account_id;
+                    }
+                    
+                    if (!accountId) {
+                        this.modalError = 'Error: Could not determine account for this email';
+                        this.modalLoading = false;
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/api/emails/${encodeURIComponent(messageId)}?account_id=${encodeURIComponent(accountId)}`);
+                        
+                        if (!response.ok) {
+                            throw new Error(`Failed to load email: ${response.statusText}`);
+                        }
+                        
+                        const email = await response.json();
+                        this.currentModalEmail = email;
+                        this.modalLoading = false;
+                    } catch (error) {
+                        console.error('Error loading email:', error);
+                        this.modalError = `Error loading email: ${error.message}`;
+                        this.modalLoading = false;
+                    }
+                },
+                closeEmailModal() {
+                    this.showModal = false;
+                    this.currentModalEmail = null;
+                    this.modalError = null;
+                },
+                async toggleLabel(email, labelName, event) {
+                    if (event) {
+                        event.stopPropagation();
+                    }
+                    
+                    const hasLabelValue = this.hasLabel(email.label_names || [], labelName);
+                    const loadingKey = email.id.startsWith('modal-') ? `modal-${email.id}-${labelName}` : `${email.id}-${labelName}`;
+                    
+                    if (hasLabelValue) {
+                        await this.removeLabelFromList(email.id, email.account_id, labelName, event);
+                    } else {
+                        await this.addLabelFromList(email.id, email.account_id, labelName, event);
+                    }
+                },
+                async addLabelFromList(messageId, accountId, labelName, event) {
+                    if (event) {
+                        event.stopPropagation();
+                    }
+                    
+                    if (!messageId || !accountId) {
+                        return;
+                    }
+                    
+                    const email = this.allEmails.find(e => e.id === messageId);
+                    if (!email) {
+                        return;
+                    }
+                    
+                    const labelNames = email.label_names || [];
+                    const hasLabelValue = this.hasLabel(labelNames, labelName);
+                    
+                    if (hasLabelValue) {
+                        return;
+                    }
+                    
+                    const loadingKey = `${messageId}-${labelName}`;
+                    this.loadingLabels[loadingKey] = true;
+                    
+                    try {
+                        const url = `/api/emails/${encodeURIComponent(messageId)}/labels?account_id=${encodeURIComponent(accountId)}`;
+                        
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ label_names: [labelName] })
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(errorData.detail || `Failed to add label: ${response.statusText}`);
+                        }
+                        
+                        email.label_names = [...labelNames, labelName];
+                        
+                        if (this.currentModalEmail && this.currentModalEmail.id === messageId) {
+                            this.currentModalEmail.label_names = email.label_names;
+                        }
+                    } catch (error) {
+                        console.error(`Error adding ${labelName} label:`, error);
+                        alert(`Error adding ${labelName} label: ` + error.message);
+                    } finally {
+                        this.loadingLabels[loadingKey] = false;
+                    }
+                },
+                async removeLabelFromList(messageId, accountId, labelName, event) {
+                    if (event) {
+                        event.stopPropagation();
+                    }
+                    
+                    if (!messageId || !accountId) {
+                        return;
+                    }
+                    
+                    const email = this.allEmails.find(e => e.id === messageId);
+                    if (!email) {
+                        return;
+                    }
+                    
+                    const labelNames = email.label_names || [];
+                    const hasLabelValue = this.hasLabel(labelNames, labelName);
+                    
+                    if (!hasLabelValue) {
+                        return;
+                    }
+                    
+                    const loadingKey = messageId.startsWith('modal-') ? `modal-${messageId}-${labelName}` : `${messageId}-${labelName}`;
+                    this.loadingLabels[loadingKey] = true;
+                    
+                    try {
+                        const url = `/api/emails/${encodeURIComponent(messageId)}/labels?account_id=${encodeURIComponent(accountId)}`;
+                        
+                        const response = await fetch(url, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ label_names: [labelName] })
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(errorData.detail || `Failed to remove label: ${response.statusText}`);
+                        }
+                        
+                        email.label_names = labelNames.filter(label => label.toLowerCase() !== labelName.toLowerCase());
+                        
+                        if (this.currentModalEmail && this.currentModalEmail.id === messageId) {
+                            this.currentModalEmail.label_names = email.label_names;
+                        }
+                    } catch (error) {
+                        console.error(`Error removing ${labelName} label:`, error);
+                        alert(`Error removing ${labelName} label: ` + error.message);
+                    } finally {
+                        this.loadingLabels[loadingKey] = false;
+                    }
+                },
+                async removeLabel(messageId, accountId, labelName, event) {
+                    await this.removeLabelFromList(messageId, accountId, labelName, event);
+                },
+                createConfetti() {
+                    const container = this.$refs.emailListRef;
+                    if (!container) return;
+                    
+                    const colors = ['#ffd700', '#4caf50', '#5b9bd5', '#ff6b6b', '#ffed4e', '#ff9800'];
+                    
+                    for (let i = 0; i < 50; i++) {
+                        const confetti = document.createElement('div');
+                        confetti.className = 'confetti';
+                        confetti.style.left = Math.random() * 100 + '%';
+                        confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                        confetti.style.width = (Math.random() * 10 + 5) + 'px';
+                        confetti.style.height = (Math.random() * 10 + 5) + 'px';
+                        confetti.style.animationDelay = Math.random() * 3 + 's';
+                        confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                        container.appendChild(confetti);
+                        
+                        setTimeout(() => confetti.remove(), 5000);
+                    }
+                }
+            },
+            async mounted() {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('auth_success') === 'true') {
+                    setTimeout(async () => {
+                        await this.loadLabels();
+                        await this.loadAccounts();
+                        await this.initializeEmails();
+                    }, 500);
+                }
+                if (urlParams.get('auth_error')) {
+                    this.showError('Authentication failed: ' + urlParams.get('auth_error'));
+                }
+                
+                await this.loadLabels();
+                await this.loadAccounts();
+                await this.initializeEmails();
+                
+                // Close modal with Escape key
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.showModal) {
+                        this.closeEmailModal();
+                    }
+                });
+                
+                // Create confetti when inbox zero is achieved
+                this.$watch(() => this.allEmails.length === 0 && this.hasAuthenticatedAccounts, (newVal) => {
+                    if (newVal) {
+                        setTimeout(() => this.createConfetti(), 100);
+                    }
+                });
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
+
