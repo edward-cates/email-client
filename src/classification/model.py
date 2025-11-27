@@ -36,7 +36,7 @@ def get_ml_label_names() -> set[str]:
 
 def get_num_labels() -> int:
     """Get the number of labels from labels.yaml"""
-    return len(load_labels())
+    return len(get_ml_labels())
 
 
 def load_model_and_tokenizer():
