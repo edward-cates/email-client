@@ -11,3 +11,11 @@ labels:
     include_in_ml: true
   - name: Later
     include_in_ml: false
+  - name: p1
+    include_in_ml: false
+  - name: p2
+    include_in_ml: false
+  - name: p3
+    include_in_ml: false
+  - name: p4
+    include_in_ml: false
