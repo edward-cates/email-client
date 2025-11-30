@@ -614,6 +614,13 @@ async def get_email_details(
         raise HTTPException(status_code=500, detail=f"Error fetching email: {str(e)}") from e
 
 
+@app.get("/api/skyvern/available")
+async def check_skyvern_available():
+    """Check if Skyvern is available (API key is configured)"""
+    api_key = os.getenv("SKYVERN_API_KEY")
+    return {"available": bool(api_key)}
+
+
 @app.post("/api/skyvern/run-workflow")
 async def run_skyvern_workflow(request: SkyvernRequest):
     """Run Skyvern workflow with email HTML"""

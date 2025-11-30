@@ -15,6 +15,12 @@ Filter emails by type, sorted by increasing score, so you can quickly correct mi
 
 ![Mass Archival](doc/img/mass-archival.png)
 
+## Inbox Zero
+
+Feel like an emperor every time you reach inbox zero.
+
+![Inbox Zero](doc/img/inbox-zero.png)
+
 ## Quick Start (~15 mins)
 
 1. Create and activate a conda environment:

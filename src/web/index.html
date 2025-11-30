@@ -1117,6 +1117,30 @@
             cursor: not-allowed;
         }
 
+        .archive-button {
+            background: var(--navy-light);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .archive-button:hover:not(:disabled) {
+            background: var(--navy-lighter);
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .archive-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .modal-body {
             padding: 32px;
             overflow-y: auto;
@@ -1283,6 +1307,7 @@
                                 <option v-for="label in mlLabelTypes" :key="label.name" :value="label.name">
                                     {{ label.name }}
                                 </option>
+                                <option value="Unclassified">Unclassified</option>
                             </select>
                             <div class="threshold-control" v-show="selectedLabelFilter">
                                 <input type="range" 
@@ -1489,6 +1514,14 @@
                     </div>
                     <div class="modal-header-actions">
                         <button 
+                            class="archive-button" 
+                            @click="archiveCurrentEmail" 
+                            :disabled="!currentModalEmail"
+                            title="Archive this email">
+                            Archive
+                        </button>
+                        <button 
+                            v-if="skyvernAvailable"
                             class="skyvern-button" 
                             @click="sendToSkyvern" 
                             :disabled="!hasHtml || skyvernLoading || isSkyvernSent"
@@ -1564,7 +1597,8 @@
                     modalActiveTab: 'html',
                     loadingLabels: {},
                     skyvernLoading: false,
-                    skyvernSentEmails: new Set()
+                    skyvernSentEmails: new Set(),
+                    skyvernAvailable: false
                 };
             },
             computed: {
@@ -1591,20 +1625,43 @@
                     
                     // Filter by selected label and threshold
                     if (this.selectedLabelFilter) {
-                        emails = emails.filter(email => {
-                            const effectiveScore = this.getEffectiveScore(email, this.selectedLabelFilter);
-                            // If effective score is 0 or -1 (no score), only show if threshold is 0
-                            if (effectiveScore === 0 || effectiveScore === -1) {
-                                return this.labelThreshold === 0;
-                            }
-                            // Otherwise check if score meets threshold
-                            return effectiveScore >= this.labelThreshold;
-                        });
+                        if (this.selectedLabelFilter === 'Unclassified') {
+                            // Filter for unclassified emails: no manual ML label and no score >= threshold
+                            const mlLabelNames = this.mlLabelTypes.map(lt => lt.name.toLowerCase());
+                            const threshold = this.labelThreshold;
+                            emails = emails.filter(email => {
+                                const labelNames = email.label_names || [];
+                                // Check if email has a manual ML label
+                                const hasManualMlLabel = labelNames.some(labelName => 
+                                    mlLabelNames.includes(labelName.toLowerCase())
+                                );
+                                if (hasManualMlLabel) {
+                                    return false; // Has manual label, not unclassified
+                                }
+                                // Check if any category has score >= threshold
+                                const categories = ['marketing', 'noti', 'event', 'newsletter', 'direct'];
+                                const hasScoreAboveThreshold = categories.some(category => {
+                                    const score = this.getEffectiveScore(email, category);
+                                    return score >= threshold && score > 0;
+                                });
+                                return !hasScoreAboveThreshold; // No score >= threshold = unclassified
+                            });
+                        } else {
+                            emails = emails.filter(email => {
+                                const effectiveScore = this.getEffectiveScore(email, this.selectedLabelFilter);
+                                // If effective score is 0 or -1 (no score), only show if threshold is 0
+                                if (effectiveScore === 0 || effectiveScore === -1) {
+                                    return this.labelThreshold === 0;
+                                }
+                                // Otherwise check if score meets threshold
+                                return effectiveScore >= this.labelThreshold;
+                            });
+                        }
                     }
                     
                     // Sort emails
                     const sorted = [...emails];
-                    if (this.selectedLabelFilter) {
+                    if (this.selectedLabelFilter && this.selectedLabelFilter !== 'Unclassified') {
                         // Sort by score ascending for the selected label
                         sorted.sort((a, b) => {
                             const scoreA = this.getEffectiveScore(a, this.selectedLabelFilter);
@@ -1635,6 +1692,8 @@
                 emptyMessage() {
                     if (this.showOnlyUnlabeled) {
                         return 'No unlabeled emails found';
+                    } else if (this.selectedLabelFilter === 'Unclassified') {
+                        return 'No unclassified emails found';
                     } else if (this.selectedLabelFilter) {
                         return `No emails found with ${this.selectedLabelFilter} score ≥ ${this.labelThreshold}%`;
                     }
@@ -1686,8 +1745,16 @@
                     const threshold = this.labelThreshold;
                     
                     categories.forEach(cat => categoryMap[cat] = 0);
+                    categoryMap['Unclassified'] = 0;
                     
                     this.allEmails.forEach(email => {
+                        // Check if email has a manual ML label
+                        const labelNames = email.label_names || [];
+                        const mlLabelNames = this.mlLabelTypes.map(lt => lt.name.toLowerCase());
+                        const hasManualMlLabel = labelNames.some(labelName => 
+                            mlLabelNames.includes(labelName.toLowerCase())
+                        );
+                        
                         // Find the best category for this email
                         let bestCategory = null;
                         let bestScore = -1;
@@ -1703,6 +1770,9 @@
                         
                         if (bestCategory) {
                             categoryMap[bestCategory]++;
+                        } else if (!hasManualMlLabel) {
+                            // No category meets threshold and no manual ML label = Unclassified
+                            categoryMap['Unclassified']++;
                         }
                     });
                     
@@ -1741,7 +1811,10 @@
                     }
                 },
                 onLabelFilterChange() {
-                    if (this.selectedLabelFilter) {
+                    if (this.selectedLabelFilter === 'Unclassified') {
+                        // Keep current threshold for unclassified filter
+                        // (emails with no score >= threshold)
+                    } else if (this.selectedLabelFilter) {
                         this.labelThreshold = 50;
                     } else {
                         this.labelThreshold = 0;
@@ -1754,6 +1827,18 @@
                         this.accounts = data.accounts;
                     } catch (error) {
                         console.error('Error loading accounts:', error);
+                    }
+                },
+                async checkSkyvernAvailable() {
+                    try {
+                        const response = await fetch('/api/skyvern/available');
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.skyvernAvailable = data.available || false;
+                        }
+                    } catch (error) {
+                        console.error('Error checking Skyvern availability:', error);
+                        this.skyvernAvailable = false;
                     }
                 },
                 async startAuth(accountId) {
@@ -2532,6 +2617,62 @@
                         this.skyvernLoading = false;
                     }
                 },
+                async archiveCurrentEmail() {
+                    if (!this.currentModalEmail) {
+                        return;
+                    }
+                    
+                    const result = await Swal.fire({
+                        title: 'Archive Email?',
+                        text: 'Are you sure you want to archive this email?',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#1a73e8',
+                        cancelButtonColor: '#5f6368',
+                        confirmButtonText: 'Archive',
+                        cancelButtonText: 'Cancel'
+                    });
+                    
+                    if (!result.isConfirmed) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(
+                            `/api/emails/${encodeURIComponent(this.currentModalEmail.id)}/archive?account_id=${encodeURIComponent(this.currentModalEmail.account_id)}`,
+                            { method: 'POST' }
+                        );
+                        
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(errorText || 'Archive failed');
+                        }
+                        
+                        // Remove email from list and track it
+                        this.archivedEmailIds.add(this.currentModalEmail.id);
+                        this.allEmails = this.allEmails.filter(e => e.id !== this.currentModalEmail.id);
+                        
+                        // Close modal
+                        this.closeEmailModal();
+                        
+                        // Show success message
+                        Swal.fire({
+                            title: 'Success!',
+                            text: 'Email archived',
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    } catch (error) {
+                        console.error('Error archiving email:', error);
+                        Swal.fire({
+                            title: 'Error',
+                            text: `Failed to archive email: ${error.message}`,
+                            icon: 'error',
+                            timer: 3000
+                        });
+                    }
+                },
                 async toggleLabel(email, labelName, event) {
                     if (event) {
                         event.stopPropagation();
@@ -2688,6 +2829,7 @@
                 
                 await this.loadLabels();
                 await this.loadAccounts();
+                await this.checkSkyvernAvailable();
                 await this.initializeEmails();
                 
                 // Close modal with Escape key
