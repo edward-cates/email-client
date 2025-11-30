@@ -1680,53 +1680,42 @@
                     return this.labelTypes.filter(lt => lt.include_in_ml !== false);
                 },
                 categoryCounts() {
-                    // Count emails by predicted category
-                    const categoryMap = {};
+                    // Count emails by category - each email goes to its best category
                     const categories = ['marketing', 'noti', 'event', 'newsletter', 'direct'];
+                    const categoryMap = {};
+                    const threshold = this.labelThreshold;
                     
-                    // Initialize all categories
-                    categories.forEach(cat => {
-                        categoryMap[cat] = 0;
-                    });
+                    categories.forEach(cat => categoryMap[cat] = 0);
                     
-                    let totalWithPredictions = 0;
-                    
-                    // Count emails by their predicted category (highest score in label_scores)
                     this.allEmails.forEach(email => {
-                        const labelScores = email.label_scores;
-                        if (labelScores && typeof labelScores === 'object') {
-                            // Find the category with the highest score
-                            let maxScore = -1;
-                            let predictedCategory = null;
-                            
-                            Object.entries(labelScores).forEach(([category, score]) => {
-                                const categoryLower = category.toLowerCase();
-                                if (categories.includes(categoryLower) && score > maxScore) {
-                                    maxScore = score;
-                                    predictedCategory = categoryLower;
-                                }
-                            });
-                            
-                            if (predictedCategory) {
-                                categoryMap[predictedCategory]++;
-                                totalWithPredictions++;
+                        // Find the best category for this email
+                        let bestCategory = null;
+                        let bestScore = -1;
+                        
+                        categories.forEach(category => {
+                            const score = this.getEffectiveScore(email, category);
+                            // Manual label (100) always wins, otherwise use highest score >= threshold
+                            if (score === 100 || (score >= threshold && score > bestScore)) {
+                                bestCategory = category;
+                                bestScore = score;
                             }
+                        });
+                        
+                        if (bestCategory) {
+                            categoryMap[bestCategory]++;
                         }
                     });
                     
-                    // Convert to array and calculate percentages
-                    const result = Object.entries(categoryMap)
+                    const total = Object.values(categoryMap).reduce((sum, count) => sum + count, 0);
+                    
+                    return Object.entries(categoryMap)
                         .map(([category, count]) => ({
                             category,
                             count,
-                            percentage: totalWithPredictions > 0 
-                                ? Math.round((count / totalWithPredictions) * 100) 
-                                : 0
+                            percentage: total > 0 ? Math.round((count / total) * 100) : 0
                         }))
-                        .filter(item => item.count > 0) // Only show categories with emails
-                        .sort((a, b) => b.count - a.count); // Sort by count descending
-                    
-                    return result;
+                        .filter(item => item.count > 0)
+                        .sort((a, b) => b.count - a.count);
                 }
             },
             methods: {
