@@ -15,7 +15,7 @@ Filter emails by type, sorted by increasing score, so you can quickly correct mi
 
 ![Mass Archival](doc/img/mass-archival.png)
 
-## Quick Start (5-10 mins)
+## Quick Start (10-15 mins)
 
 1. Create and activate a conda environment:
 ```bash
