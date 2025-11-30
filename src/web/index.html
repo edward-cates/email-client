@@ -2423,7 +2423,7 @@
                     
                     // Initialize progress for all accounts
                     authenticatedAccounts.forEach(account => {
-                        const inboxCount = this.accountCounts[account.account_id] || this.BATCH_SIZE;
+                        const inboxCount = this.accountCounts[account.account_id] || 0;
                         const maxResults = Math.min(inboxCount, this.BATCH_SIZE);
                         if (!this.accountProgress[account.account_id]) {
                             this.accountProgress[account.account_id] = {
@@ -2438,8 +2438,19 @@
                     // Start streaming from all accounts
                     const streamPromises = authenticatedAccounts.map(account => {
                         return new Promise((resolve, reject) => {
-                            const inboxCount = this.accountCounts[account.account_id] || this.BATCH_SIZE;
+                            const inboxCount = this.accountCounts[account.account_id] || 0;
                             const maxResults = Math.min(inboxCount, this.BATCH_SIZE);
+                            
+                            // Skip stream call for empty accounts
+                            if (maxResults === 0) {
+                                resolve({
+                                    account_id: account.account_id,
+                                    emails: [],
+                                    next_token: null
+                                });
+                                return;
+                            }
+                            
                             let url = `/api/emails/stream?account_id=${encodeURIComponent(account.account_id)}&max_results=${maxResults}`;
                             
                             if (this.nextPageToken) {
