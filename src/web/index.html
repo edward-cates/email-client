@@ -6,6 +6,7 @@
     <title>Gmail Client</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@11/marked.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -467,6 +468,235 @@
             color: var(--text-tertiary);
             border-color: var(--border);
             cursor: not-allowed;
+        }
+
+        .summarize-section {
+            padding: 32px;
+            background: linear-gradient(135deg, var(--navy-dark) 0%, var(--ocean) 100%);
+            border-bottom: 2px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .summarize-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(91, 155, 213, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(76, 175, 80, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .summarize-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .summarize-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent-bright);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .summarize-icon {
+            font-size: 24px;
+            filter: drop-shadow(0 0 8px rgba(91, 155, 213, 0.5));
+        }
+
+        .summarize-btn {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, var(--ocean-light) 0%, var(--accent) 100%);
+            color: var(--midnight-black);
+            border: 1px solid var(--accent-bright);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 12px rgba(91, 155, 213, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .summarize-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .summarize-btn:hover:not(:disabled)::before {
+            left: 100%;
+        }
+
+        .summarize-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-bright) 100%);
+            box-shadow: 0 6px 20px rgba(91, 155, 213, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .summarize-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .summarize-btn:disabled {
+            background: var(--navy-dark);
+            color: var(--text-tertiary);
+            border-color: var(--border);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .summarize-content {
+            position: relative;
+            z-index: 1;
+            margin-top: 24px;
+            padding: 24px;
+            background: rgba(26, 35, 50, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .summarize-error {
+            color: var(--danger);
+            padding: 16px;
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .summarize-text {
+            color: var(--text-primary);
+            line-height: 1.8;
+            font-size: 15px;
+            padding: 20px;
+            background: rgba(45, 74, 94, 0.3);
+            border-radius: 6px;
+            border-left: 4px solid var(--accent);
+            min-height: 60px;
+            position: relative;
+        }
+
+        .summarize-text :deep(ul) {
+            margin: 0;
+            padding-left: 24px;
+            list-style: none;
+        }
+
+        .summarize-text :deep(li) {
+            margin-bottom: 12px;
+            padding-left: 8px;
+        }
+
+        .summarize-text :deep(li::marker) {
+            content: '';
+        }
+
+        .summarize-text :deep(strong) {
+            color: var(--accent-bright);
+            font-weight: 600;
+        }
+
+        .summarize-text :deep(p) {
+            margin: 0 0 12px 0;
+        }
+
+        .summarize-text :deep(p:last-child) {
+            margin-bottom: 0;
+        }
+
+        .summarize-text::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .summarize-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .summarize-count {
+            flex: 1;
+            font-size: 13px;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+        }
+
+        .summarize-archive-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--success) 0%, #66bb6a 100%);
+            color: white;
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .summarize-archive-btn:hover {
+            background: linear-gradient(135deg, #66bb6a 0%, #81c784 100%);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .summarize-loading {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .summarize-spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--navy-dark);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
         }
 
         .progress-container {
@@ -1367,6 +1597,41 @@
                         </div>
                     </div>
                 </div>
+                <!-- Summarize section -->
+                <div v-if="ollamaAvailable && filteredEmails.length > 0" class="summarize-section">
+                    <div class="summarize-header">
+                        <div class="summarize-title">
+                            <span class="summarize-icon">✨</span>
+                            <span>AI Summary using Ollama</span>
+                        </div>
+                        <button class="summarize-btn" 
+                                @click="summarizeEmails"
+                                :disabled="summarizing || filteredEmails.length === 0">
+                            <span v-if="summarizing">Generating...</span>
+                            <span v-else>Generate Summary</span>
+                        </button>
+                    </div>
+                    <div v-if="summarizing && !summary && !summaryError" class="summarize-loading">
+                        <div class="summarize-spinner"></div>
+                        <span>Analyzing {{ filteredEmails.length }} email{{ filteredEmails.length !== 1 ? 's' : '' }}...</span>
+                    </div>
+                    <div v-if="summary || summaryError" class="summarize-content">
+                        <div v-if="summaryError" class="summarize-error">
+                            <span>⚠️</span>
+                            <span>{{ summaryError }}</span>
+                        </div>
+                        <div v-if="summary" class="summarize-text" v-html="renderMarkdown(summary)"></div>
+                        <div v-if="summary && !summarizing" class="summarize-actions">
+                            <div class="summarize-count">
+                                Summary of {{ filteredEmails.length }} email{{ filteredEmails.length !== 1 ? 's' : '' }}
+                            </div>
+                            <button class="summarize-archive-btn" 
+                                    @click="archiveAllFilteredEmails">
+                                📦 Archive All
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <div class="email-list" @scroll="handleScroll" ref="emailListRef">
                     <!-- Loading state -->
                     <div v-if="isLoading && allEmails.length === 0" class="loading">Loading emails...</div>
@@ -1598,7 +1863,11 @@
                     loadingLabels: {},
                     skyvernLoading: false,
                     skyvernSentEmails: new Set(),
-                    skyvernAvailable: false
+                    skyvernAvailable: false,
+                    ollamaAvailable: false,
+                    summarizing: false,
+                    summary: '',
+                    summaryError: null
                 };
             },
             computed: {
@@ -1789,6 +2058,22 @@
                 }
             },
             methods: {
+                renderMarkdown(text) {
+                    if (!text || typeof marked === 'undefined') {
+                        return text || '';
+                    }
+                    try {
+                        // Configure marked for safe rendering
+                        marked.setOptions({
+                            breaks: true,
+                            gfm: true
+                        });
+                        return marked.parse(text);
+                    } catch (e) {
+                        console.error('Error rendering markdown:', e);
+                        return text;
+                    }
+                },
                 async loadLabels() {
                     try {
                         const response = await fetch('/api/labels');
@@ -1839,6 +2124,214 @@
                     } catch (error) {
                         console.error('Error checking Skyvern availability:', error);
                         this.skyvernAvailable = false;
+                    }
+                },
+                async checkOllamaAvailable() {
+                    try {
+                        const response = await fetch('/api/ollama/available');
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.ollamaAvailable = data.available || false;
+                            if (data.available) {
+                                console.log(`Ollama available: yes (model: ${data.model_name})`);
+                            } else {
+                                const reasons = [];
+                                if (!data.ollama_running) reasons.push('Ollama not running');
+                                if (!data.model_configured) reasons.push('OLLAMA_SUMMARY_MODEL not set');
+                                if (data.model_configured && !data.model_exists) {
+                                    reasons.push(`Model '${data.model_name}' not found locally`);
+                                    if (data.available_models) {
+                                        console.warn(`Available models: ${data.available_models.join(', ')}`);
+                                    }
+                                }
+                                console.log(`Ollama available: no (${reasons.join(', ')})`);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error checking Ollama availability:', error);
+                        this.ollamaAvailable = false;
+                        console.log('Ollama available: no (error checking)');
+                    }
+                },
+                async summarizeEmails() {
+                    if (this.filteredEmails.length === 0) {
+                        Swal.fire({
+                            title: 'No emails',
+                            text: 'No emails to summarize',
+                            icon: 'warning',
+                            timer: 2000
+                        });
+                        return;
+                    }
+                    
+                    this.summarizing = true;
+                    this.summary = '';
+                    this.summaryError = null;
+                    
+                    try {
+                        const messageIds = this.filteredEmails.map(e => e.id);
+                        const accountIds = {};
+                        this.filteredEmails.forEach(email => {
+                            accountIds[email.id] = email.account_id;
+                        });
+                        
+                        const response = await fetch('/api/ollama/summarize', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                message_ids: messageIds,
+                                account_ids: accountIds
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            
+                            const chunk = decoder.decode(value);
+                            const lines = chunk.split('\n');
+                            
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    try {
+                                        const data = JSON.parse(line.slice(6));
+                                        if (data.type === 'chunk') {
+                                            this.summary += data.content;
+                                        } else if (data.type === 'complete') {
+                                            this.summarizing = false;
+                                        } else if (data.type === 'error') {
+                                            this.summaryError = data.message;
+                                            this.summarizing = false;
+                                        }
+                                    } catch (e) {
+                                        // Skip invalid JSON
+                                    }
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error summarizing emails:', error);
+                        this.summaryError = error.message;
+                        this.summarizing = false;
+                    }
+                },
+                async archiveAllFilteredEmails() {
+                    if (this.filteredEmails.length === 0) {
+                        return;
+                    }
+                    
+                    const messageIds = this.filteredEmails.map(e => e.id);
+                    const accountIds = {};
+                    this.filteredEmails.forEach(email => {
+                        accountIds[email.id] = email.account_id;
+                    });
+                    
+                    const result = await Swal.fire({
+                        title: 'Archive All Emails?',
+                        text: `Are you sure you want to archive all ${this.filteredEmails.length} email${this.filteredEmails.length > 1 ? 's' : ''} currently showing?`,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#1a73e8',
+                        cancelButtonColor: '#5f6368',
+                        confirmButtonText: 'Archive All',
+                        cancelButtonText: 'Cancel'
+                    });
+                    
+                    if (!result.isConfirmed) {
+                        return;
+                    }
+                    
+                    // Initialize progress tracking
+                    this.archiveProgress = {
+                        current: 0,
+                        total: messageIds.length,
+                        percent: 0,
+                        success: [],
+                        failed: []
+                    };
+                    this.showArchiveProgress = true;
+                    
+                    // Process emails in batches to avoid overwhelming the server
+                    const BATCH_SIZE = 10;
+                    const batches = [];
+                    for (let i = 0; i < messageIds.length; i += BATCH_SIZE) {
+                        batches.push(messageIds.slice(i, i + BATCH_SIZE));
+                    }
+                    
+                    // Process each batch sequentially, but emails within a batch in parallel
+                    for (const batch of batches) {
+                        const batchPromises = batch.map(async (messageId) => {
+                            const accountId = accountIds[messageId];
+                            if (!accountId) {
+                                this.archiveProgress.failed.push({ messageId, error: 'Account ID not found' });
+                                this.updateArchiveProgress();
+                                return { success: false, messageId };
+                            }
+                            
+                            try {
+                                const response = await fetch(
+                                    `/api/emails/${encodeURIComponent(messageId)}/archive?account_id=${encodeURIComponent(accountId)}`,
+                                    { method: 'POST' }
+                                );
+                                
+                                if (!response.ok) {
+                                    const errorText = await response.text();
+                                    throw new Error(errorText || 'Archive failed');
+                                }
+                                
+                                this.archiveProgress.success.push(messageId);
+                                this.updateArchiveProgress();
+                                return { success: true, messageId };
+                            } catch (error) {
+                                this.archiveProgress.failed.push({ messageId, error: error.message });
+                                this.updateArchiveProgress();
+                                return { success: false, messageId, error: error.message };
+                            }
+                        });
+                        
+                        // Wait for current batch to complete before starting next batch
+                        await Promise.allSettled(batchPromises);
+                    }
+                    
+                    // Remove archived emails from the list and track them
+                    const archivedIds = new Set(this.archiveProgress.success);
+                    this.archiveProgress.success.forEach(id => this.archivedEmailIds.add(id));
+                    this.allEmails = this.allEmails.filter(e => !archivedIds.has(e.id));
+                    this.selectedEmails = [];
+                    
+                    // Clear summary since emails are archived
+                    this.summary = '';
+                    
+                    // Hide progress after a short delay
+                    setTimeout(() => {
+                        this.showArchiveProgress = false;
+                        this.archiveProgress = null;
+                    }, 2000);
+                    
+                    // Show completion message
+                    if (this.archiveProgress.failed.length > 0) {
+                        Swal.fire({
+                            title: 'Partially Complete',
+                            text: `Archived ${this.archiveProgress.success.length} email${this.archiveProgress.success.length > 1 ? 's' : ''}, ${this.archiveProgress.failed.length} failed`,
+                            icon: 'warning'
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Success!',
+                            text: `Archived ${this.archiveProgress.success.length} email${this.archiveProgress.success.length > 1 ? 's' : ''}`,
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
                     }
                 },
                 async startAuth(accountId) {
@@ -2830,6 +3323,7 @@
                 await this.loadLabels();
                 await this.loadAccounts();
                 await this.checkSkyvernAvailable();
+                await this.checkOllamaAvailable();
                 await this.initializeEmails();
                 
                 // Close modal with Escape key

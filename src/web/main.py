@@ -1,5 +1,7 @@
 import json
 import os
+import re
+import socket
 import sys
 import time
 import uuid
@@ -64,6 +66,11 @@ class BulkArchiveRequest(BaseModel):
 
 class SkyvernRequest(BaseModel):
     email_html: str
+
+
+class SummarizeRequest(BaseModel):
+    message_ids: list[str]
+    account_ids: dict[str, str]  # Map of message_id to account_id
 
 # CORS middleware for frontend requests
 app.add_middleware(
@@ -187,7 +194,7 @@ async def archive_email_endpoint(
 @app.post("/api/emails/bulk-archive")
 async def bulk_archive_endpoint(request: BulkArchiveRequest):
     """Archive multiple emails"""
-    results = {"success": [], "failed": []}
+    results: dict[str, list] = {"success": [], "failed": []}
 
     for message_id in request.message_ids:
         account_id = request.account_ids.get(message_id)
@@ -614,11 +621,264 @@ async def get_email_details(
         raise HTTPException(status_code=500, detail=f"Error fetching email: {str(e)}") from e
 
 
+@app.get("/api/ollama/available")
+async def check_ollama_available():
+    """Check if Ollama is available (port 11434 is listening), OLLAMA_SUMMARY_MODEL is set, and model exists locally"""
+    try:
+        # Check 1: Is Ollama running?
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex(('localhost', 11434))
+        sock.close()
+        ollama_running = result == 0
+        
+        if not ollama_running:
+            print("Ollama check: no (port 11434 not listening)")
+            return {
+                "available": False,
+                "ollama_running": False,
+                "model_configured": False,
+                "model_exists": False,
+                "model_name": None
+            }
+        
+        # Check 2: Is OLLAMA_SUMMARY_MODEL set?
+        summary_model = os.getenv('OLLAMA_SUMMARY_MODEL')
+        has_model_config = bool(summary_model)
+        
+        if not has_model_config:
+            print("Ollama check: no (OLLAMA_SUMMARY_MODEL not set)")
+            return {
+                "available": False,
+                "ollama_running": True,
+                "model_configured": False,
+                "model_exists": False,
+                "model_name": None
+            }
+        
+        # Check 3: Does the model exist locally?
+        model_exists = False
+        available_models = []
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get('http://localhost:11434/api/tags')
+                if response.status_code == 200:
+                    data = response.json()
+                    available_models = [m['name'] for m in data.get('models', [])]
+                    # Check if the configured model exists (exact match or with :latest tag)
+                    model_exists = (
+                        summary_model in available_models or
+                        f"{summary_model}:latest" in available_models or
+                        any(summary_model == m.split(':')[0] for m in available_models)
+                    )
+        except Exception as e:
+            print(f"Ollama check: error querying models - {e}")
+        
+        if not model_exists:
+            print(f"Ollama check: WARNING - Model '{summary_model}' not found locally. Available models: {available_models}")
+            print(f"Ollama check: Install with: ollama pull {summary_model}")
+        else:
+            print(f"Ollama check: yes (model '{summary_model}' found locally)")
+        
+        available = ollama_running and has_model_config and model_exists
+        
+        return {
+            "available": available,
+            "ollama_running": ollama_running,
+            "model_configured": has_model_config,
+            "model_exists": model_exists,
+            "model_name": summary_model if has_model_config else None,
+            "available_models": available_models if not model_exists else None  # Only return if model not found, for debugging
+        }
+    except Exception as e:
+        print(f"Ollama check error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "available": False,
+            "ollama_running": False,
+            "model_configured": False,
+            "model_exists": False,
+            "model_name": None
+        }
+
+
 @app.get("/api/skyvern/available")
 async def check_skyvern_available():
     """Check if Skyvern is available (API key is configured)"""
     api_key = os.getenv("SKYVERN_API_KEY")
     return {"available": bool(api_key)}
+
+
+@app.post("/api/ollama/summarize")
+async def summarize_emails(request: SummarizeRequest):
+    """Summarize emails using Ollama with streaming"""
+    print(f"[Ollama Summarize] Received request for {len(request.message_ids)} emails")
+    
+    # Check if Ollama is available
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    result = sock.connect_ex(('localhost', 11434))
+    sock.close()
+    if result != 0:
+        print("[Ollama Summarize] ERROR: Ollama is not available (port 11434 not listening)")
+        raise HTTPException(status_code=503, detail="Ollama is not available")
+    
+    async def generate():
+        try:
+            # Fetch email details
+            print(f"[Ollama Summarize] Fetching {len(request.message_ids)} email details...")
+            email_texts = []
+            for idx, message_id in enumerate(request.message_ids):
+                account_id = request.account_ids.get(message_id)
+                if not account_id:
+                    print(f"[Ollama Summarize] WARNING: No account_id for message {message_id}")
+                    continue
+                if not is_authenticated(account_id):
+                    print(f"[Ollama Summarize] WARNING: Account {account_id} not authenticated for message {message_id}")
+                    continue
+                
+                try:
+                    message = get_message(account_id, message_id, format='full')
+                    if message:
+                        label_id_to_name = get_label_name_mapping(account_id)
+                        parsed = parse_message_full(message, label_id_to_name)
+                        # Format email for summarization
+                        body = parsed.get('text', '')
+                        if not body and parsed.get('html'):
+                            # Fallback to HTML if no text, but limit length
+                            html = parsed.get('html', '')
+                            # Simple HTML tag removal
+                            body = re.sub(r'<[^>]+>', '', html)
+                        # Limit body length to avoid token limits
+                        body = body[:2000] if body else ''
+                        email_text = f"From: {parsed.get('from', 'Unknown')}\n"
+                        email_text += f"Subject: {parsed.get('subject', 'No subject')}\n"
+                        email_text += f"Date: {parsed.get('date', 'Unknown')}\n"
+                        email_text += f"Body: {body}\n"
+                        email_texts.append(email_text)
+                        print(f"[Ollama Summarize] Fetched email {idx+1}/{len(request.message_ids)}: {parsed.get('subject', 'No subject')[:50]}")
+                except Exception as e:
+                    print(f"[Ollama Summarize] ERROR fetching email {message_id}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    continue
+            
+            if not email_texts:
+                print("[Ollama Summarize] ERROR: No emails to summarize")
+                yield f"data: {json.dumps({'type': 'error', 'message': 'No emails to summarize'})}\n\n"
+                return
+            
+            print(f"[Ollama Summarize] Prepared {len(email_texts)} emails for summarization")
+            
+            # Prepare prompt for Ollama
+            emails_content = "\n\n---\n\n".join(email_texts)
+            prompt = f"""Summarize the following emails into a concise markdown-formatted bullet list with emojis.
+
+Requirements:
+- Output ONLY the summary in markdown format (use - for bullets, ** for bold, etc.)
+- Each bullet point should represent a key topic or theme from the emails
+- Use appropriate emojis to make it visually appealing
+- Do NOT include any meta-commentary like "I've summarized" or "Here are X bullets"
+- Do NOT include any introductory text - start directly with the bullet list
+- Output should be valid markdown that can be rendered as HTML
+
+Emails:
+{emails_content}
+
+Summary (markdown format, bullets only, no meta-commentary):"""
+            
+            prompt_length = len(prompt)
+            print(f"[Ollama Summarize] Prompt length: {prompt_length} characters")
+            
+            # Use the configured summary model
+            model = os.getenv('OLLAMA_SUMMARY_MODEL')
+            if not model:
+                print("[Ollama Summarize] ERROR: OLLAMA_SUMMARY_MODEL not set")
+                yield f"data: {json.dumps({'type': 'error', 'message': 'OLLAMA_SUMMARY_MODEL environment variable not configured'})}\n\n"
+                return
+            
+            print(f"[Ollama Summarize] Using model: {model} (from OLLAMA_SUMMARY_MODEL env var)")
+            
+            # Now stream from Ollama
+            print(f"[Ollama Summarize] Sending request to Ollama API with model '{model}'...")
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                request_payload = {
+                    'model': model,
+                    'prompt': prompt,
+                    'stream': True
+                }
+                print(f"[Ollama Summarize] Request payload keys: {list(request_payload.keys())}, model: {model}, prompt length: {len(prompt)}")
+                
+                async with client.stream(
+                    'POST',
+                    'http://localhost:11434/api/generate',
+                    json=request_payload
+                ) as response:
+                    print(f"[Ollama Summarize] Response status: {response.status_code}")
+                    
+                    if response.status_code == 404:
+                        error_msg = f'Model "{model}" not found. Please install it with: ollama pull {model}'
+                        print(f"[Ollama Summarize] ERROR: {error_msg}")
+                        yield f"data: {json.dumps({'type': 'error', 'message': error_msg})}\n\n"
+                        return
+                    elif response.status_code == 400:
+                        # Try to read error response
+                        try:
+                            error_body = await response.aread()
+                            error_text = error_body.decode('utf-8', errors='ignore') if error_body else 'Bad request'
+                            print(f"[Ollama Summarize] ERROR 400 - Response body: {error_text[:500]}")
+                            error_msg = f'Ollama API error: {error_text[:200]}'
+                        except Exception as e:
+                            print(f"[Ollama Summarize] ERROR 400 - Could not read response: {e}")
+                            error_msg = f'Ollama API error: Bad request (HTTP 400). Check model name and prompt format.'
+                        yield f"data: {json.dumps({'type': 'error', 'message': error_msg})}\n\n"
+                        return
+                    
+                    response.raise_for_status()
+                    print("[Ollama Summarize] Streaming response...")
+                    buffer = ""
+                    chunk_count = 0
+                    async for line in response.aiter_lines():
+                        if line:
+                            try:
+                                data = json.loads(line)
+                                if 'response' in data:
+                                    chunk = data['response']
+                                    buffer += chunk
+                                    chunk_count += 1
+                                    yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+                                if data.get('done', False):
+                                    print(f"[Ollama Summarize] Complete. Received {chunk_count} chunks, total length: {len(buffer)}")
+                                    break
+                            except json.JSONDecodeError as e:
+                                print(f"[Ollama Summarize] WARNING: JSON decode error on line: {line[:100]}")
+                                continue
+                    
+                    yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+        except httpx.HTTPStatusError as e:
+            # Handle specific error codes
+            print(f"[Ollama Summarize] HTTPStatusError: {e.response.status_code}")
+            import traceback
+            traceback.print_exc()
+            
+            if e.response.status_code == 404:
+                error_msg = 'Model not found. Please install a model with: ollama pull llama3.2'
+            elif e.response.status_code == 400:
+                error_msg = 'Bad request. Check model name and request format.'
+            elif e.response.status_code == 500:
+                error_msg = 'Ollama server error. Check if the model is properly installed.'
+            else:
+                error_msg = f'Ollama API error: HTTP {e.response.status_code}'
+            print(f"[Ollama Summarize] ERROR: {error_msg}")
+            yield f"data: {json.dumps({'type': 'error', 'message': error_msg})}\n\n"
+        except Exception as e:
+            print(f"[Ollama Summarize] Unexpected error: {e}")
+            import traceback
+            traceback.print_exc()
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Error: {str(e)}'})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @app.post("/api/skyvern/run-workflow")
