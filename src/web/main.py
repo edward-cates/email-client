@@ -1,16 +1,23 @@
 import json
+import os
 import sys
 import time
+import uuid
 from pathlib import Path
 from queue import Queue
 from threading import Thread
 
+import httpx
 import uvicorn
 import yaml
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -54,6 +61,10 @@ class BulkArchiveRequest(BaseModel):
     message_ids: list[str]
     account_ids: dict[str, str]  # Map of message_id to account_id
 
+
+class SkyvernRequest(BaseModel):
+    email_html: str
+
 # CORS middleware for frontend requests
 app.add_middleware(
     CORSMiddleware,
@@ -85,8 +96,14 @@ async def read_root():
 
 @app.get("/api/labels")
 async def get_labels():
-    """Get labels configuration"""
-    return load_labels_config()
+    """Get labels configuration with include_in_ml flag"""
+    labels_config = load_labels_config()
+    # Ensure each label has include_in_ml flag (defaults to True if not specified)
+    if "labels" in labels_config:
+        for label in labels_config["labels"]:
+            if "include_in_ml" not in label:
+                label["include_in_ml"] = True
+    return labels_config
 
 
 @app.get("/api/auth/status")
@@ -595,6 +612,44 @@ async def get_email_details(
         return parsed
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching email: {str(e)}") from e
+
+
+@app.post("/api/skyvern/run-workflow")
+async def run_skyvern_workflow(request: SkyvernRequest):
+    """Run Skyvern workflow with email HTML"""
+    api_key = os.getenv("SKYVERN_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="SKYVERN_API_KEY not configured")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.skyvern.com/v1/run/workflows",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": api_key
+                },
+                json={
+                    "workflow_id": "wpid_466366219251350078",
+                    "parameters": {
+                        "email_html": request.email_html
+                    },
+                    "proxy_location": "RESIDENTIAL",
+                    "browser_session_id": None,
+                    "browser_address": None,
+                    "run_with": "agent",
+                    "ai_fallback": False,
+                    "extra_http_headers": {},
+                    "cache_key": str(uuid.uuid4())
+                },
+                timeout=30.0
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"Skyvern API error: {e.response.text}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calling Skyvern API: {str(e)}") from e
 
 
 if __name__ == "__main__":

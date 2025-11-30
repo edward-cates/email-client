@@ -106,6 +106,113 @@
             text-transform: uppercase;
         }
 
+        .leaderboard-section {
+            margin-bottom: 32px;
+        }
+
+        .leaderboard-item {
+            padding: 16px 20px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+            background: var(--navy-dark);
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .leaderboard-item:hover {
+            border-color: var(--accent);
+            background: var(--ocean);
+            box-shadow: var(--shadow);
+            transform: translateX(2px);
+        }
+
+        .leaderboard-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--accent);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .leaderboard-item:hover::before {
+            opacity: 1;
+        }
+
+        .leaderboard-rank {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent-bright);
+            min-width: 30px;
+            text-align: center;
+            margin-right: 16px;
+        }
+
+        .leaderboard-content {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .leaderboard-category {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .leaderboard-category-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: capitalize;
+            letter-spacing: 0.5px;
+        }
+
+        .leaderboard-category-subtitle {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            font-weight: 300;
+        }
+
+        .leaderboard-count {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .leaderboard-count-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent-bright);
+            line-height: 1;
+        }
+
+        .leaderboard-count-label {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 400;
+        }
+
+        .leaderboard-empty {
+            padding: 20px;
+            text-align: center;
+            color: var(--text-tertiary);
+            font-size: 14px;
+            font-style: italic;
+        }
+
         .account-item {
             padding: 20px;
             margin-bottom: 8px;
@@ -597,19 +704,21 @@
         }
 
         .label-badge {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
             color: var(--text-primary);
             font-size: 11px;
             font-weight: 600;
             padding: 5px 10px;
-            margin-left: 6px;
-            margin-top: 4px;
             vertical-align: middle;
             transition: all 0.2s ease;
             background: var(--ocean);
             border: 1px solid var(--accent);
             letter-spacing: 1px;
             text-transform: uppercase;
+            width: auto;
+            max-width: fit-content;
+            flex-shrink: 0;
         }
 
         .label-badge:hover:not(.loading) {
@@ -637,8 +746,10 @@
             opacity: 0.6;
             cursor: wait;
             pointer-events: none;
-            min-width: fit-content;
+            width: auto;
+            max-width: fit-content;
             white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .label-badge .delete-icon {
@@ -975,6 +1086,37 @@
             color: white;
         }
 
+        .modal-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .skyvern-button {
+            background: var(--accent-bright);
+            border: 1px solid var(--accent-bright);
+            color: var(--navy-dark);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .skyvern-button:hover:not(:disabled) {
+            background: var(--accent);
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .skyvern-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .modal-body {
             padding: 32px;
             overflow-y: auto;
@@ -1094,6 +1236,30 @@
                         <div v-else class="auth-status authenticated">Authenticated</div>
                     </div>
                 </div>
+
+                <div class="leaderboard-section">
+                    <div class="auth-section-title">Category Breakdown</div>
+                    <div v-if="categoryCounts.length === 0" class="leaderboard-empty">
+                        No emails loaded yet
+                    </div>
+                    <div v-else>
+                        <div v-for="(item, index) in categoryCounts" 
+                             :key="item.category" 
+                             class="leaderboard-item">
+                            <div class="leaderboard-rank">#{{ index + 1 }}</div>
+                            <div class="leaderboard-content">
+                                <div class="leaderboard-category">
+                                    <div class="leaderboard-category-name">{{ item.category }}</div>
+                                    <div class="leaderboard-category-subtitle">{{ item.percentage }}% of total</div>
+                                </div>
+                                <div class="leaderboard-count">
+                                    <div class="leaderboard-count-value">{{ item.count }}</div>
+                                    <div class="leaderboard-count-label">emails</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="content-area">
@@ -1114,7 +1280,7 @@
                         <div class="label-filter-controls">
                             <select class="label-select" v-model="selectedLabelFilter" @change="onLabelFilterChange">
                                 <option value="">Filter by label...</option>
-                                <option v-for="label in labelTypes" :key="label.name" :value="label.name">
+                                <option v-for="label in mlLabelTypes" :key="label.name" :value="label.name">
                                     {{ label.name }}
                                 </option>
                             </select>
@@ -1150,6 +1316,27 @@
                                  :style="{
                                      width: isProgressLoading(progress) ? '0' : Math.min(progress.percent || 0, 100) + '%',
                                      backgroundColor: progress.error ? '#ea4335' : '#1a73e8'
+                                 }">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-container" v-if="showArchiveProgress && archiveProgress">
+                    <div class="account-progress">
+                        <div class="account-progress-header">
+                            <span class="account-progress-name">Archiving Emails</span>
+                            <span class="account-progress-stats">
+                                {{ archiveProgressStats }}
+                                <span v-if="archiveProgressFailedCount > 0" style="color: #ea4335; margin-left: 8px;">
+                                    ({{ archiveProgressFailedCount }} failed)
+                                </span>
+                            </span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" 
+                                 :style="{
+                                     width: archiveProgressPercent + '%',
+                                     backgroundColor: archiveProgressHasFailures ? '#ea4335' : '#1a73e8'
                                  }">
                             </div>
                         </div>
@@ -1221,7 +1408,7 @@
                                 {{ email.to || '' }}
                             </div>
                             <div class="email-snippet">{{ email.snippet || '' }}</div>
-                            <div style="grid-column: 1 / -1; grid-row: 5; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);">
+                            <div style="grid-column: 1 / -1; grid-row: 5; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
                                 <span v-for="labelType in labelTypes" 
                                       :key="labelType.name"
                                       :class="['label-badge', 
@@ -1274,7 +1461,7 @@
                             <div class="modal-meta-row">
                                 <span class="modal-meta-label">Date:</span> {{ formatDate(currentModalEmail.date || currentModalEmail.internalDate) }}
                             </div>
-                            <div class="modal-meta-row">
+                            <div class="modal-meta-row" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
                                 <span class="modal-meta-label">Labels:</span>
                                 <span v-for="labelType in labelTypes" 
                                       :key="labelType.name"
@@ -1285,7 +1472,7 @@
                                                }]"
                                       @click="toggleLabel(currentModalEmail, labelType.name, $event)"
                                       :title="`Click to ${hasLabel(currentModalEmail.label_names || [], labelType.name) ? 'remove' : 'add'} ${labelType.name} label`"
-                                      style="cursor: pointer; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;">
+                                      style="cursor: pointer;">
                                     <template v-if="hasLabel(currentModalEmail.label_names || [], labelType.name)">
                                         {{ labelType.name }}
                                         <span class="delete-icon" 
@@ -1300,7 +1487,18 @@
                             </div>
                         </div>
                     </div>
-                    <button class="modal-close" @click="closeEmailModal" aria-label="Close">×</button>
+                    <div class="modal-header-actions">
+                        <button 
+                            class="skyvern-button" 
+                            @click="sendToSkyvern" 
+                            :disabled="!hasHtml || skyvernLoading || isSkyvernSent"
+                            :title="isSkyvernSent ? 'Already sent to Skyvern' : (hasHtml ? 'Send email to Skyvern' : 'Email HTML not available')">
+                            <span v-if="skyvernLoading">Sending...</span>
+                            <span v-else-if="isSkyvernSent">Sent to Skyvern</span>
+                            <span v-else>Send to Skyvern</span>
+                        </button>
+                        <button class="modal-close" @click="closeEmailModal" aria-label="Close">×</button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <div v-if="modalLoading" class="modal-loading">Loading email...</div>
@@ -1344,11 +1542,11 @@
                     accounts: [],
                     allEmails: [],
                     nextPageToken: null,
-                    totalEmailCount: 0,
                     isLoading: false,
                     hasMoreEmails: true,
                     BATCH_SIZE: 200,
                     accountCounts: {},
+                    archivedEmailIds: new Set(),
                     selectedEmails: [],
                     showOnlyUnlabeled: false,
                     selectedLabelFilter: '',
@@ -1357,12 +1555,16 @@
                     accountProgress: {},
                     accountStreams: {},
                     showProgress: false,
+                    archiveProgress: null,
+                    showArchiveProgress: false,
                     showModal: false,
                     currentModalEmail: null,
                     modalLoading: false,
                     modalError: null,
                     modalActiveTab: 'html',
-                    loadingLabels: {}
+                    loadingLabels: {},
+                    skyvernLoading: false,
+                    skyvernSentEmails: new Set()
                 };
             },
             computed: {
@@ -1375,15 +1577,15 @@
                 filteredEmails() {
                     let emails = this.allEmails;
                     
-                    // Filter by unlabeled
+                    // Filter by unlabeled (only check ML labels, not bonus labels like p1-p4)
                     if (this.showOnlyUnlabeled) {
-                        const customLabelNames = this.labelTypes.map(lt => lt.name.toLowerCase());
+                        const mlLabelNames = this.mlLabelTypes.map(lt => lt.name.toLowerCase());
                         emails = emails.filter(email => {
                             const labelNames = email.label_names || [];
-                            const hasCustomLabel = labelNames.some(labelName => 
-                                customLabelNames.includes(labelName.toLowerCase())
+                            const hasMlLabel = labelNames.some(labelName => 
+                                mlLabelNames.includes(labelName.toLowerCase())
                             );
-                            return !hasCustomLabel;
+                            return !hasMlLabel;
                         });
                     }
                     
@@ -1420,6 +1622,10 @@
                     
                     return sorted;
                 },
+                totalEmailCount() {
+                    const initialTotal = Object.values(this.accountCounts).reduce((sum, count) => sum + count, 0);
+                    return Math.max(0, initialTotal - this.archivedEmailIds.size);
+                },
                 emailCountText() {
                     if (this.totalEmailCount > 0) {
                         return `Showing ${this.filteredEmails.length} of ${this.totalEmailCount} emails`;
@@ -1448,6 +1654,79 @@
                 },
                 hasText() {
                     return this.currentModalEmail?.body?.trim();
+                },
+                archiveProgressStats() {
+                    if (!this.archiveProgress) return '0 / 0';
+                    const current = this.archiveProgress.current || 0;
+                    const total = this.archiveProgress.total || 0;
+                    return `${current} / ${total}`;
+                },
+                archiveProgressFailedCount() {
+                    if (!this.archiveProgress || !this.archiveProgress.failed) return 0;
+                    return this.archiveProgress.failed.length;
+                },
+                archiveProgressPercent() {
+                    if (!this.archiveProgress) return 0;
+                    return Math.min((this.archiveProgress.percent || 0), 100);
+                },
+                archiveProgressHasFailures() {
+                    return this.archiveProgress && this.archiveProgress.failed && this.archiveProgress.failed.length > 0;
+                },
+                isSkyvernSent() {
+                    return this.currentModalEmail && this.skyvernSentEmails.has(this.currentModalEmail.id);
+                },
+                mlLabelTypes() {
+                    // Only labels where include_in_ml is true (core ML labels)
+                    return this.labelTypes.filter(lt => lt.include_in_ml !== false);
+                },
+                categoryCounts() {
+                    // Count emails by predicted category
+                    const categoryMap = {};
+                    const categories = ['marketing', 'noti', 'event', 'newsletter', 'direct'];
+                    
+                    // Initialize all categories
+                    categories.forEach(cat => {
+                        categoryMap[cat] = 0;
+                    });
+                    
+                    let totalWithPredictions = 0;
+                    
+                    // Count emails by their predicted category (highest score in label_scores)
+                    this.allEmails.forEach(email => {
+                        const labelScores = email.label_scores;
+                        if (labelScores && typeof labelScores === 'object') {
+                            // Find the category with the highest score
+                            let maxScore = -1;
+                            let predictedCategory = null;
+                            
+                            Object.entries(labelScores).forEach(([category, score]) => {
+                                const categoryLower = category.toLowerCase();
+                                if (categories.includes(categoryLower) && score > maxScore) {
+                                    maxScore = score;
+                                    predictedCategory = categoryLower;
+                                }
+                            });
+                            
+                            if (predictedCategory) {
+                                categoryMap[predictedCategory]++;
+                                totalWithPredictions++;
+                            }
+                        }
+                    });
+                    
+                    // Convert to array and calculate percentages
+                    const result = Object.entries(categoryMap)
+                        .map(([category, count]) => ({
+                            category,
+                            count,
+                            percentage: totalWithPredictions > 0 
+                                ? Math.round((count / totalWithPredictions) * 100) 
+                                : 0
+                        }))
+                        .filter(item => item.count > 0) // Only show categories with emails
+                        .sort((a, b) => b.count - a.count); // Sort by count descending
+                    
+                    return result;
                 }
             },
             methods: {
@@ -1455,14 +1734,20 @@
                     try {
                         const response = await fetch('/api/labels');
                         const data = await response.json();
-                        this.labelTypes = data.labels.map(label => ({ name: label.name }));
+                        // Store labels with include_in_ml flag (defaults to true if not specified)
+                        this.labelTypes = data.labels.map(label => ({ 
+                            name: label.name,
+                            include_in_ml: label.include_in_ml !== false // defaults to true
+                        }));
                     } catch (error) {
                         console.error('Error loading labels:', error);
+                        // Fallback with include_in_ml flags
                         this.labelTypes = [
-                            { name: 'marketing' },
-                            { name: 'noti' },
-                            { name: 'event' },
-                            { name: 'newsletter' }
+                            { name: 'marketing', include_in_ml: true },
+                            { name: 'noti', include_in_ml: true },
+                            { name: 'event', include_in_ml: true },
+                            { name: 'newsletter', include_in_ml: true },
+                            { name: 'direct', include_in_ml: true }
                         ];
                     }
                 },
@@ -1512,11 +1797,13 @@
                         if (countsResponse.ok) {
                             const countsData = await countsResponse.json();
                             this.accountCounts = countsData.account_counts || {};
-                            this.totalEmailCount = Object.values(this.accountCounts).reduce((sum, count) => sum + count, 0);
                         }
                     } catch (error) {
                         console.error('Error loading email counts:', error);
                     }
+                    
+                    // Reset archived emails tracking when reinitializing
+                    this.archivedEmailIds = new Set();
                     
                     // Initialize progress
                     this.accountProgress = {};
@@ -1983,12 +2270,13 @@
                     return score !== undefined ? ` (${score}%)` : '';
                 },
                 // Get effective score for a label on an email
-                // Returns: 100 if manually labeled with this label, 0 if manually labeled with different label, model score otherwise, or -1 if no score
+                // Returns: 100 if manually labeled with this label, 0 if manually labeled with different ML label, model score otherwise, or -1 if no score
+                // Note: Bonus labels (p1-p4, Later) don't block ML predictions
                 getEffectiveScore(email, labelName) {
                     const labelNames = email.label_names || [];
                     const labelScores = email.label_scores || {};
                     const labelNameLower = labelName.toLowerCase();
-                    const customLabelNames = this.labelTypes.map(lt => lt.name.toLowerCase());
+                    const mlLabelNames = this.mlLabelTypes.map(lt => lt.name.toLowerCase());
                     
                     // Check if label is manually set (counts as 100%)
                     const hasManualLabel = labelNames.some(name => 
@@ -1999,12 +2287,13 @@
                         return 100;
                     }
                     
-                    // Check if email has a different manual label (effective score = 0)
-                    const hasDifferentManualLabel = labelNames.some(name => 
-                        customLabelNames.includes(name.toLowerCase())
+                    // Check if email has a different manual ML label (effective score = 0)
+                    // Bonus labels (p1-p4, Later) don't block ML predictions
+                    const hasDifferentMlLabel = labelNames.some(name => 
+                        mlLabelNames.includes(name.toLowerCase())
                     );
                     
-                    if (hasDifferentManualLabel) {
+                    if (hasDifferentMlLabel) {
                         return 0;
                     }
                     
@@ -2033,11 +2322,12 @@
                     }
                 },
                 selectLabeledEmails() {
-                    const customLabelNames = this.labelTypes.map(lt => lt.name.toLowerCase());
+                    // Only select emails with ML labels (bonus labels like p1-p4 don't count)
+                    const mlLabelNames = this.mlLabelTypes.map(lt => lt.name.toLowerCase());
                     const labeledEmails = this.allEmails.filter(email => {
                         const labelNames = email.label_names || [];
                         return labelNames.some(labelName => 
-                            customLabelNames.includes(labelName.toLowerCase())
+                            mlLabelNames.includes(labelName.toLowerCase())
                         );
                     });
                     
@@ -2072,60 +2362,92 @@
                         return;
                     }
                     
-                    Swal.fire({
-                        title: 'Archiving...',
-                        text: `Archiving ${this.selectedEmails.length} email${this.selectedEmails.length > 1 ? 's' : ''}`,
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
-                    });
+                    // Initialize progress tracking
+                    this.archiveProgress = {
+                        current: 0,
+                        total: messageIds.length,
+                        percent: 0,
+                        success: [],
+                        failed: []
+                    };
+                    this.showArchiveProgress = true;
                     
-                    try {
-                        const response = await fetch('/api/emails/bulk-archive', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                message_ids: messageIds,
-                                account_ids: accountIds
-                            })
+                    // Process emails in batches to avoid overwhelming the server
+                    const BATCH_SIZE = 10;
+                    const batches = [];
+                    for (let i = 0; i < messageIds.length; i += BATCH_SIZE) {
+                        batches.push(messageIds.slice(i, i + BATCH_SIZE));
+                    }
+                    
+                    // Process each batch sequentially, but emails within a batch in parallel
+                    for (const batch of batches) {
+                        const batchPromises = batch.map(async (messageId) => {
+                            const accountId = accountIds[messageId];
+                            if (!accountId) {
+                                this.archiveProgress.failed.push({ messageId, error: 'Account ID not found' });
+                                this.updateArchiveProgress();
+                                return { success: false, messageId };
+                            }
+                            
+                            try {
+                                const response = await fetch(
+                                    `/api/emails/${encodeURIComponent(messageId)}/archive?account_id=${encodeURIComponent(accountId)}`,
+                                    { method: 'POST' }
+                                );
+                                
+                                if (!response.ok) {
+                                    const errorText = await response.text();
+                                    throw new Error(errorText || 'Archive failed');
+                                }
+                                
+                                this.archiveProgress.success.push(messageId);
+                                this.updateArchiveProgress();
+                                return { success: true, messageId };
+                            } catch (error) {
+                                this.archiveProgress.failed.push({ messageId, error: error.message });
+                                this.updateArchiveProgress();
+                                return { success: false, messageId, error: error.message };
+                            }
                         });
                         
-                        if (!response.ok) {
-                            throw new Error('Failed to archive emails');
-                        }
-                        
-                        const data = await response.json();
-                        
-                        // Remove archived emails
-                        const archivedIds = new Set(data.results.success);
-                        this.allEmails = this.allEmails.filter(e => !archivedIds.has(e.id));
-                        this.selectedEmails = [];
-                        
-                        if (data.failed_count > 0) {
-                            Swal.fire({
-                                title: 'Partially Complete',
-                                text: `Archived ${data.archived_count} email${data.archived_count > 1 ? 's' : ''}, ${data.failed_count} failed`,
-                                icon: 'warning'
-                            });
-                        } else {
-                            Swal.fire({
-                                title: 'Success!',
-                                text: `Archived ${data.archived_count} email${data.archived_count > 1 ? 's' : ''}`,
-                                icon: 'success',
-                                timer: 2000,
-                                showConfirmButton: false
-                            });
-                        }
-                    } catch (error) {
+                        // Wait for current batch to complete before starting next batch
+                        await Promise.allSettled(batchPromises);
+                    }
+                    
+                    // Remove archived emails from the list and track them
+                    const archivedIds = new Set(this.archiveProgress.success);
+                    this.archiveProgress.success.forEach(id => this.archivedEmailIds.add(id));
+                    this.allEmails = this.allEmails.filter(e => !archivedIds.has(e.id));
+                    this.selectedEmails = [];
+                    
+                    // Hide progress after a short delay
+                    setTimeout(() => {
+                        this.showArchiveProgress = false;
+                        this.archiveProgress = null;
+                    }, 2000);
+                    
+                    // Show completion message
+                    if (this.archiveProgress.failed.length > 0) {
                         Swal.fire({
-                            title: 'Error',
-                            text: 'Failed to archive emails: ' + error.message,
-                            icon: 'error'
+                            title: 'Partially Complete',
+                            text: `Archived ${this.archiveProgress.success.length} email${this.archiveProgress.success.length > 1 ? 's' : ''}, ${this.archiveProgress.failed.length} failed`,
+                            icon: 'warning'
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Success!',
+                            text: `Archived ${this.archiveProgress.success.length} email${this.archiveProgress.success.length > 1 ? 's' : ''}`,
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
                         });
                     }
+                },
+                updateArchiveProgress() {
+                    this.archiveProgress.current = this.archiveProgress.success.length + this.archiveProgress.failed.length;
+                    this.archiveProgress.percent = this.archiveProgress.total > 0 
+                        ? Math.min((this.archiveProgress.current / this.archiveProgress.total) * 100, 100)
+                        : 0;
                 },
                 async openEmailModal(messageId, accountId) {
                     this.showModal = true;
@@ -2165,6 +2487,61 @@
                     this.showModal = false;
                     this.currentModalEmail = null;
                     this.modalError = null;
+                },
+                async sendToSkyvern() {
+                    if (!this.currentModalEmail || !this.currentModalEmail.body_html) {
+                        return;
+                    }
+                    
+                    this.skyvernLoading = true;
+                    
+                    try {
+                        const response = await fetch('/api/skyvern/run-workflow', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                email_html: this.currentModalEmail.body_html
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+                            throw new Error(errorData.detail || `Skyvern API error: ${response.statusText}`);
+                        }
+                        
+                        const result = await response.json();
+                        console.log('Skyvern response:', result);
+                        
+                        // Mark email as sent
+                        if (this.currentModalEmail?.id) {
+                            this.skyvernSentEmails.add(this.currentModalEmail.id);
+                        }
+                        
+                        // Show success message
+                        if (window.Swal) {
+                            window.Swal.fire({
+                                title: 'Success!',
+                                text: 'Email sent to Skyvern workflow',
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error sending to Skyvern:', error);
+                        if (window.Swal) {
+                            window.Swal.fire({
+                                title: 'Error',
+                                text: `Failed to send to Skyvern: ${error.message}`,
+                                icon: 'error',
+                                timer: 3000
+                            });
+                        }
+                    } finally {
+                        this.skyvernLoading = false;
+                    }
                 },
                 async toggleLabel(email, labelName, event) {
                     if (event) {

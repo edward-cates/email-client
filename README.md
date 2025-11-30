@@ -9,6 +9,12 @@ Train your own email classifier on your actual emails, then use it to automatica
 - 🎓 Train your own email classifier
 - 🏷️ Use it to filter your emails
 
+## Mass Archival
+
+Filter emails by type, sorted by increasing score, so you can quickly correct mislabels, then mass-archive everything else!
+
+![Mass Archival](doc/img/mass-archival.png)
+
 ## Quick Start
 
 1. Create and activate a conda environment:
