@@ -123,6 +123,7 @@
             align-items: center;
             position: relative;
             overflow: hidden;
+            cursor: pointer;
         }
 
         .leaderboard-item:hover {
@@ -1499,7 +1500,8 @@
                     <div v-else>
                         <div v-for="(item, index) in categoryCounts" 
                              :key="item.category" 
-                             class="leaderboard-item">
+                             class="leaderboard-item"
+                             @click="filterByCategory(item.category)">
                             <div class="leaderboard-rank">#{{ index + 1 }}</div>
                             <div class="leaderboard-content">
                                 <div class="leaderboard-category">
@@ -2104,6 +2106,10 @@
                     } else {
                         this.labelThreshold = 0;
                     }
+                },
+                filterByCategory(category) {
+                    this.selectedLabelFilter = category;
+                    this.onLabelFilterChange();
                 },
                 async loadAccounts() {
                     try {
@@ -3341,6 +3347,52 @@
                 document.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape' && this.showModal) {
                         this.closeEmailModal();
+                    }
+                });
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    // Don't trigger shortcuts if user is typing in an input, textarea, or select
+                    const target = e.target;
+                    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+                        return;
+                    }
+                    
+                    // Don't trigger if modal is open
+                    if (this.showModal) {
+                        return;
+                    }
+                    
+                    const key = e.key.toLowerCase();
+                    
+                    // Handle 'a' key: select all or archive
+                    if (key === 'a') {
+                        e.preventDefault();
+                        const allSelected = this.selectAllChecked;
+                        if (allSelected) {
+                            // All showing emails are selected, click archive button
+                            if (this.selectedEmails.length > 0) {
+                                this.archiveSelectedEmails();
+                            }
+                        } else {
+                            // Not all selected, select all showing emails
+                            const syntheticEvent = { target: { checked: true } };
+                            this.toggleSelectAll(syntheticEvent);
+                        }
+                        return;
+                    }
+                    
+                    // Handle other letter keys: filter by category
+                    if (key.length === 1 && /[a-z]/.test(key)) {
+                        e.preventDefault();
+                        // Find the highest category (first in sorted list) that starts with this letter
+                        const matchingCategory = this.categoryCounts.find(item => 
+                            item.category.toLowerCase().startsWith(key)
+                        );
+                        if (matchingCategory) {
+                            this.selectedLabelFilter = matchingCategory.category;
+                            this.onLabelFilterChange();
+                        }
                     }
                 });
                 

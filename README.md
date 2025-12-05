@@ -21,6 +21,18 @@ Feel like an emperor every time you reach inbox zero.
 
 ![Inbox Zero](doc/img/inbox-zero.png)
 
+## Keyboard Shortcuts
+
+The email client supports keyboard shortcuts for quick navigation and actions:
+
+- **Letter keys (a-z, excluding 'a')**: Press any letter to filter to the highest category (by count) in the category breakdown that starts with that letter. For example, pressing `m` will filter to "marketing" if it's the highest category starting with 'm'.
+
+- **'a' key**: 
+  - If not all showing emails are selected, pressing `a` will select all currently visible emails
+  - If all showing emails are already selected, pressing `a` will trigger the archive action (which will show a confirmation dialog)
+
+**Note:** Keyboard shortcuts are disabled when typing in input fields, textareas, or when the email modal is open.
+
 ## Quick Start (~15 mins)
 
 1. Create and activate a conda environment:
