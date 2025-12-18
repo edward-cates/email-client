@@ -633,8 +633,12 @@ async def get_emails_stream(
         else:
             emails, next_token = result
 
-        # Stream each email
-        for email in emails:
+        # Stream each email with model inference progress
+        total_emails = len(emails)
+        for idx, email in enumerate(emails):
+            # Send model progress update
+            yield f"data: {json.dumps({'type': 'model_progress', 'account_id': account_id, 'current': idx + 1, 'total': total_emails})}\n\n"
+            
             email['account_id'] = account_id
             # Add label scores if model is available
             scores = _get_label_scores(email)

@@ -112,7 +112,7 @@ def predict_email_labels(email: dict) -> Optional[dict[str, int]]:
         logits = outputs.logits
     
     # Apply softmax to get probabilities
-    probs = torch.nn.functional.softmax(logits, dim=-1).numpy()[0]
+    probs = torch.nn.functional.softmax(logits, dim=-1).cpu().numpy()[0]
     
     # Get label names and indices for ML labels only
     label_names = [label["name"] for label in labels_data if label.get("include_in_ml", True)]

@@ -188,12 +188,11 @@ def train_model(
         
         if isinstance(eval_pred, tuple) and len(eval_pred) == 2:
             predictions, labels = eval_pred
-        elif isinstance(eval_pred, EvalPrediction):
-            predictions = eval_pred.predictions
-            labels = eval_pred.label_ids
         else:
-            predictions = eval_pred.predictions
-            labels = eval_pred.label_ids
+            # EvalPrediction or compatible object
+            eval_pred_obj: EvalPrediction = eval_pred  # type: ignore[assignment]
+            predictions = eval_pred_obj.predictions
+            labels = eval_pred_obj.label_ids
         
         predictions = np.asarray(predictions).flatten()
         labels = np.asarray(labels).flatten()

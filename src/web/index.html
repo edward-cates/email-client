@@ -781,6 +781,30 @@
             }
         }
 
+        .progress-phase-icon {
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .model-progress {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .model-progress-name {
+            color: #c084fc !important;
+        }
+
+        .progress-bar.model-bar {
+            background-color: rgba(192, 132, 252, 0.15);
+        }
+
+        .progress-fill.model-fill {
+            background: linear-gradient(90deg, #a855f7 0%, #c084fc 100%);
+            box-shadow: 0 0 12px rgba(168, 85, 247, 0.6);
+        }
+
         .email-list {
             flex: 1;
             overflow-y: auto;
@@ -1186,6 +1210,79 @@
             font-weight: 400;
             letter-spacing: 1px;
             text-transform: uppercase;
+        }
+
+        .loading-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 60px 32px;
+        }
+
+        .loading-icon-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-center-icon {
+            font-size: 32px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .loading-orbit {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            animation: orbit 3s linear infinite;
+        }
+
+        .loading-planet {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+        }
+
+        @keyframes orbit {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
+
+        .loading-text {
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--text-primary);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .loading-subtext {
+            font-size: 13px;
+            color: var(--text-tertiary);
+            letter-spacing: 0.5px;
         }
 
         .error {
@@ -1713,6 +1810,7 @@
                     <div v-for="(progress, accountId) in accountProgress" :key="accountId" class="account-progress">
                         <div class="account-progress-header">
                             <span class="account-progress-name">
+                                <span class="progress-phase-icon">📬</span>
                                 {{ getAccountEmail(accountId) }}
                             </span>
                             <span class="account-progress-stats" v-html="getProgressStats(progress)"></span>
@@ -1722,6 +1820,25 @@
                                  :style="{
                                      width: isProgressLoading(progress) ? '0' : Math.min(progress.percent || 0, 100) + '%',
                                      backgroundColor: progress.error ? '#ea4335' : '#1a73e8'
+                                 }">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Model inference progress -->
+                    <div v-for="(progress, accountId) in modelProgress" :key="'model-' + accountId" class="account-progress model-progress">
+                        <div class="account-progress-header">
+                            <span class="account-progress-name model-progress-name">
+                                <span class="progress-phase-icon">🧠</span>
+                                Classifying emails
+                            </span>
+                            <span class="account-progress-stats">
+                                {{ progress.current }}/{{ progress.total }} processed
+                            </span>
+                        </div>
+                        <div class="progress-bar model-bar">
+                            <div class="progress-fill model-fill" 
+                                 :style="{
+                                     width: Math.min(progress.percent || 0, 100) + '%'
                                  }">
                             </div>
                         </div>
@@ -1785,7 +1902,16 @@
                 </div>
                 <div class="email-list" @scroll="handleScroll" ref="emailListRef">
                     <!-- Loading state -->
-                    <div v-if="isLoading && allEmails.length === 0" class="loading">Loading emails...</div>
+                    <div v-if="isLoading && allEmails.length === 0" class="loading-state">
+                        <div class="loading-icon-container">
+                            <div class="loading-orbit">
+                                <span class="loading-planet">📧</span>
+                            </div>
+                            <span class="loading-center-icon">✨</span>
+                        </div>
+                        <div class="loading-text">Syncing your inbox</div>
+                        <div class="loading-subtext">Fetching messages & running AI classification</div>
+                    </div>
                     
                     <!-- No authenticated accounts -->
                     <div v-else-if="!hasAuthenticatedAccounts" class="empty-state">
@@ -2353,6 +2479,7 @@
                     labelThreshold: 50,
                     labelTypes: [],
                     accountProgress: {},
+                    modelProgress: {},
                     accountStreams: {},
                     showProgress: false,
                     archiveProgress: null,
@@ -2924,6 +3051,7 @@
                     
                     // Initialize progress
                     this.accountProgress = {};
+                    this.modelProgress = {};
                     authenticatedAccounts.forEach(account => {
                         const totalCount = this.accountCounts[account.account_id] || 0;
                         const batchTotal = Math.min(totalCount, this.BATCH_SIZE);
@@ -2947,6 +3075,7 @@
                     
                     if (isInitial) {
                         this.accountProgress = {};
+                        this.modelProgress = {};
                         this.allEmails = [];
                     }
                     
@@ -3035,6 +3164,12 @@
                                             total: progressTotal,
                                             totalCount: existing.totalCount || 0,
                                             percent: progressTotal > 0 ? Math.min((data.current || 0) / progressTotal * 100, 100) : 0
+                                        };
+                                    } else if (data.type === 'model_progress') {
+                                        this.modelProgress[data.account_id] = {
+                                            current: data.current || 0,
+                                            total: data.total || 0,
+                                            percent: data.total > 0 ? Math.min((data.current || 0) / data.total * 100, 100) : 0
                                         };
                                     } else if (data.type === 'email') {
                                         const email = data.email;
@@ -3128,6 +3263,7 @@
                         // Hide progress after delay
                         setTimeout(() => {
                             this.showProgress = false;
+                            this.modelProgress = {};
                         }, 2000);
                     } catch (error) {
                         console.error('Error in email streams:', error);
@@ -3305,6 +3441,7 @@
                         // Hide progress after delay
                         setTimeout(() => {
                             this.showProgress = false;
+                            this.modelProgress = {};
                         }, 2000);
                     } catch (error) {
                         console.error('Error in pagination streams:', error);
