@@ -1463,6 +1463,151 @@
             font-weight: 400;
             letter-spacing: 0.5px;
         }
+
+        /* Priority Score Indicator */
+        .priority-score-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: rgba(91, 155, 213, 0.15);
+            border: 1px solid rgba(91, 155, 213, 0.3);
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--accent-bright);
+            letter-spacing: 0.5px;
+        }
+
+        .priority-score-badge.p1 {
+            background: rgba(244, 67, 54, 0.15);
+            border-color: rgba(244, 67, 54, 0.4);
+            color: #ff6b6b;
+        }
+
+        .priority-score-badge.p2 {
+            background: rgba(255, 152, 0, 0.15);
+            border-color: rgba(255, 152, 0, 0.4);
+            color: #ffa726;
+        }
+
+        .priority-score-badge.p3 {
+            background: rgba(76, 175, 80, 0.15);
+            border-color: rgba(76, 175, 80, 0.4);
+            color: #66bb6a;
+        }
+
+        .priority-score-badge.p4 {
+            background: rgba(158, 158, 158, 0.15);
+            border-color: rgba(158, 158, 158, 0.4);
+            color: #bdbdbd;
+        }
+
+        /* Priority Cards View */
+        .priority-cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            padding: 16px;
+        }
+
+        .priority-card {
+            background: var(--navy-dark);
+            border: 1px solid var(--border);
+            border-radius: 0;
+            overflow: hidden;
+        }
+
+        .priority-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: var(--ocean);
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .priority-card-header:hover {
+            filter: brightness(1.1);
+        }
+
+        .priority-card-chevron {
+            font-size: 12px;
+            margin-left: 8px;
+            transition: transform 0.2s ease;
+            color: var(--text-tertiary);
+        }
+
+        .priority-card.collapsed .priority-card-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .priority-card.collapsed .priority-card-emails {
+            display: none;
+        }
+
+        .priority-card-header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .priority-card-header.p1 {
+            background: linear-gradient(135deg, rgba(244, 67, 54, 0.3) 0%, rgba(244, 67, 54, 0.1) 100%);
+            border-left: 4px solid #f44336;
+        }
+
+        .priority-card-header.p2 {
+            background: linear-gradient(135deg, rgba(255, 152, 0, 0.3) 0%, rgba(255, 152, 0, 0.1) 100%);
+            border-left: 4px solid #ff9800;
+        }
+
+        .priority-card-header.unranked {
+            background: linear-gradient(135deg, rgba(91, 155, 213, 0.2) 0%, rgba(91, 155, 213, 0.05) 100%);
+            border-left: 4px solid var(--accent);
+        }
+
+        .priority-card-header.p3 {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.3) 0%, rgba(76, 175, 80, 0.1) 100%);
+            border-left: 4px solid #4caf50;
+        }
+
+        .priority-card-header.p4 {
+            background: linear-gradient(135deg, rgba(158, 158, 158, 0.3) 0%, rgba(158, 158, 158, 0.1) 100%);
+            border-left: 4px solid #9e9e9e;
+        }
+
+        .priority-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-primary);
+        }
+
+        .priority-card-count {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            padding: 4px 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+        }
+
+        .priority-card-emails {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .priority-card-empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--text-tertiary);
+            font-size: 13px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -1678,7 +1823,352 @@
                         <div>{{ emptyMessage }}</div>
                     </div>
                     
-                    <!-- Email list -->
+                    <!-- Priority Cards View (when noti filter is active) -->
+                    <template v-else-if="selectedLabelFilter && selectedLabelFilter.toLowerCase() === 'noti'">
+                        <div class="priority-cards-container">
+                            <!-- P1 Card -->
+                            <div :class="['priority-card', { collapsed: isPriorityCardCollapsed('p1') }]">
+                                <div class="priority-card-header p1" @click="togglePriorityCard('p1')">
+                                    <div class="priority-card-header-left">
+                                        <span class="priority-card-title">🔴 P1 - Critical</span>
+                                        <span class="priority-card-chevron">▼</span>
+                                    </div>
+                                    <span class="priority-card-count">{{ priorityGroups.p1.length }} emails</span>
+                                </div>
+                                <div class="priority-card-emails">
+                                    <div v-if="priorityGroups.p1.length === 0" class="priority-card-empty">
+                                        No P1 emails
+                                    </div>
+                                    <div v-for="email in priorityGroups.p1" 
+                                         :key="email.id"
+                                         class="email-item has-checkbox"
+                                         @click="openEmailModal(email.id, email.account_id)">
+                                        <input type="checkbox" 
+                                               class="email-item-checkbox"
+                                               :checked="selectedEmails.includes(email.id)"
+                                               @change="toggleEmailSelection(email.id, $event.target.checked)"
+                                               @click.stop>
+                                        <div class="email-field-label email-sender-label">FROM</div>
+                                        <div class="email-field-value email-sender-value" :title="parseSender(email.from || 'Unknown')">
+                                            {{ parseSender(email.from || 'Unknown') }}
+                                        </div>
+                                        <div class="email-field-label email-subject-label">SUBJECT</div>
+                                        <div class="email-field-value email-subject-value" :title="email.subject || '(No subject)'">
+                                            {{ email.subject || '(No subject)' }}
+                                        </div>
+                                        <div class="email-field-label email-time-label">TIME</div>
+                                        <div class="email-field-value email-time-value">{{ formatDate(email.date || email.internalDate) }}</div>
+                                        <div class="email-field-label email-to-label">TO</div>
+                                        <div class="email-field-value email-to-value" :title="email.to || ''">
+                                            {{ email.to || '' }}
+                                        </div>
+                                        <div class="email-snippet">{{ email.snippet || '' }}</div>
+                                        <div style="grid-column: 1 / -1; grid-row: 5; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                            <span v-for="labelType in labelTypes" 
+                                                  :key="labelType.name"
+                                                  :class="['label-badge', 
+                                                           { 
+                                                               'add-button': !hasLabel(email.label_names || [], labelType.name),
+                                                               'loading': loadingLabels[`${email.id}-${labelType.name}`]
+                                                           }]"
+                                                  @click.stop="toggleLabel(email, labelType.name, $event)"
+                                                  :title="`Click to ${hasLabel(email.label_names || [], labelType.name) ? 'remove' : 'add'} ${labelType.name} label`">
+                                                <template v-if="hasLabel(email.label_names || [], labelType.name)">
+                                                    {{ labelType.name }}
+                                                    <span class="delete-icon" 
+                                                          @click.stop="removeLabelFromList(email.id, email.account_id, labelType.name, $event)"
+                                                          :title="`Remove ${labelType.name} label`">×</span>
+                                                </template>
+                                                <template v-else>
+                                                    + {{ labelType.name }}{{ getScoreText(email, labelType.name) }}
+                                                </template>
+                                                <span v-if="loadingLabels[`${email.id}-${labelType.name}`]" class="loading-spinner"></span>
+                                            </span>
+                                            <span v-if="email.priority_score !== undefined" 
+                                                  :class="['priority-score-badge', getPriorityClass(email.priority_score)]"
+                                                  :title="`Priority score: ${email.priority_score}`">
+                                                ⚡ {{ email.priority_score }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- P2 Card -->
+                            <div :class="['priority-card', { collapsed: isPriorityCardCollapsed('p2') }]">
+                                <div class="priority-card-header p2" @click="togglePriorityCard('p2')">
+                                    <div class="priority-card-header-left">
+                                        <span class="priority-card-title">🟠 P2 - High</span>
+                                        <span class="priority-card-chevron">▼</span>
+                                    </div>
+                                    <span class="priority-card-count">{{ priorityGroups.p2.length }} emails</span>
+                                </div>
+                                <div class="priority-card-emails">
+                                    <div v-if="priorityGroups.p2.length === 0" class="priority-card-empty">
+                                        No P2 emails
+                                    </div>
+                                    <div v-for="email in priorityGroups.p2" 
+                                         :key="email.id"
+                                         class="email-item has-checkbox"
+                                         @click="openEmailModal(email.id, email.account_id)">
+                                        <input type="checkbox" 
+                                               class="email-item-checkbox"
+                                               :checked="selectedEmails.includes(email.id)"
+                                               @change="toggleEmailSelection(email.id, $event.target.checked)"
+                                               @click.stop>
+                                        <div class="email-field-label email-sender-label">FROM</div>
+                                        <div class="email-field-value email-sender-value" :title="parseSender(email.from || 'Unknown')">
+                                            {{ parseSender(email.from || 'Unknown') }}
+                                        </div>
+                                        <div class="email-field-label email-subject-label">SUBJECT</div>
+                                        <div class="email-field-value email-subject-value" :title="email.subject || '(No subject)'">
+                                            {{ email.subject || '(No subject)' }}
+                                        </div>
+                                        <div class="email-field-label email-time-label">TIME</div>
+                                        <div class="email-field-value email-time-value">{{ formatDate(email.date || email.internalDate) }}</div>
+                                        <div class="email-field-label email-to-label">TO</div>
+                                        <div class="email-field-value email-to-value" :title="email.to || ''">
+                                            {{ email.to || '' }}
+                                        </div>
+                                        <div class="email-snippet">{{ email.snippet || '' }}</div>
+                                        <div style="grid-column: 1 / -1; grid-row: 5; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                            <span v-for="labelType in labelTypes" 
+                                                  :key="labelType.name"
+                                                  :class="['label-badge', 
+                                                           { 
+                                                               'add-button': !hasLabel(email.label_names || [], labelType.name),
+                                                               'loading': loadingLabels[`${email.id}-${labelType.name}`]
+                                                           }]"
+                                                  @click.stop="toggleLabel(email, labelType.name, $event)"
+                                                  :title="`Click to ${hasLabel(email.label_names || [], labelType.name) ? 'remove' : 'add'} ${labelType.name} label`">
+                                                <template v-if="hasLabel(email.label_names || [], labelType.name)">
+                                                    {{ labelType.name }}
+                                                    <span class="delete-icon" 
+                                                          @click.stop="removeLabelFromList(email.id, email.account_id, labelType.name, $event)"
+                                                          :title="`Remove ${labelType.name} label`">×</span>
+                                                </template>
+                                                <template v-else>
+                                                    + {{ labelType.name }}{{ getScoreText(email, labelType.name) }}
+                                                </template>
+                                                <span v-if="loadingLabels[`${email.id}-${labelType.name}`]" class="loading-spinner"></span>
+                                            </span>
+                                            <span v-if="email.priority_score !== undefined" 
+                                                  :class="['priority-score-badge', getPriorityClass(email.priority_score)]"
+                                                  :title="`Priority score: ${email.priority_score}`">
+                                                ⚡ {{ email.priority_score }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Unranked Card -->
+                            <div :class="['priority-card', { collapsed: isPriorityCardCollapsed('unranked') }]">
+                                <div class="priority-card-header unranked" @click="togglePriorityCard('unranked')">
+                                    <div class="priority-card-header-left">
+                                        <span class="priority-card-title">❓ Unranked</span>
+                                        <span class="priority-card-chevron">▼</span>
+                                    </div>
+                                    <span class="priority-card-count">{{ priorityGroups.unranked.length }} emails</span>
+                                </div>
+                                <div class="priority-card-emails">
+                                    <div v-if="priorityGroups.unranked.length === 0" class="priority-card-empty">
+                                        No unranked emails
+                                    </div>
+                                    <div v-for="email in priorityGroups.unranked" 
+                                         :key="email.id"
+                                         class="email-item has-checkbox"
+                                         @click="openEmailModal(email.id, email.account_id)">
+                                        <input type="checkbox" 
+                                               class="email-item-checkbox"
+                                               :checked="selectedEmails.includes(email.id)"
+                                               @change="toggleEmailSelection(email.id, $event.target.checked)"
+                                               @click.stop>
+                                        <div class="email-field-label email-sender-label">FROM</div>
+                                        <div class="email-field-value email-sender-value" :title="parseSender(email.from || 'Unknown')">
+                                            {{ parseSender(email.from || 'Unknown') }}
+                                        </div>
+                                        <div class="email-field-label email-subject-label">SUBJECT</div>
+                                        <div class="email-field-value email-subject-value" :title="email.subject || '(No subject)'">
+                                            {{ email.subject || '(No subject)' }}
+                                        </div>
+                                        <div class="email-field-label email-time-label">TIME</div>
+                                        <div class="email-field-value email-time-value">{{ formatDate(email.date || email.internalDate) }}</div>
+                                        <div class="email-field-label email-to-label">TO</div>
+                                        <div class="email-field-value email-to-value" :title="email.to || ''">
+                                            {{ email.to || '' }}
+                                        </div>
+                                        <div class="email-snippet">{{ email.snippet || '' }}</div>
+                                        <div style="grid-column: 1 / -1; grid-row: 5; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                            <span v-for="labelType in labelTypes" 
+                                                  :key="labelType.name"
+                                                  :class="['label-badge', 
+                                                           { 
+                                                               'add-button': !hasLabel(email.label_names || [], labelType.name),
+                                                               'loading': loadingLabels[`${email.id}-${labelType.name}`]
+                                                           }]"
+                                                  @click.stop="toggleLabel(email, labelType.name, $event)"
+                                                  :title="`Click to ${hasLabel(email.label_names || [], labelType.name) ? 'remove' : 'add'} ${labelType.name} label`">
+                                                <template v-if="hasLabel(email.label_names || [], labelType.name)">
+                                                    {{ labelType.name }}
+                                                    <span class="delete-icon" 
+                                                          @click.stop="removeLabelFromList(email.id, email.account_id, labelType.name, $event)"
+                                                          :title="`Remove ${labelType.name} label`">×</span>
+                                                </template>
+                                                <template v-else>
+                                                    + {{ labelType.name }}{{ getScoreText(email, labelType.name) }}
+                                                </template>
+                                                <span v-if="loadingLabels[`${email.id}-${labelType.name}`]" class="loading-spinner"></span>
+                                            </span>
+                                            <span v-if="email.priority_score !== undefined" 
+                                                  :class="['priority-score-badge', getPriorityClass(email.priority_score)]"
+                                                  :title="`Priority score: ${email.priority_score}`">
+                                                ⚡ {{ email.priority_score }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- P3 Card -->
+                            <div :class="['priority-card', { collapsed: isPriorityCardCollapsed('p3') }]">
+                                <div class="priority-card-header p3" @click="togglePriorityCard('p3')">
+                                    <div class="priority-card-header-left">
+                                        <span class="priority-card-title">🟢 P3 - Medium</span>
+                                        <span class="priority-card-chevron">▼</span>
+                                    </div>
+                                    <span class="priority-card-count">{{ priorityGroups.p3.length }} emails</span>
+                                </div>
+                                <div class="priority-card-emails">
+                                    <div v-if="priorityGroups.p3.length === 0" class="priority-card-empty">
+                                        No P3 emails
+                                    </div>
+                                    <div v-for="email in priorityGroups.p3" 
+                                         :key="email.id"
+                                         class="email-item has-checkbox"
+                                         @click="openEmailModal(email.id, email.account_id)">
+                                        <input type="checkbox" 
+                                               class="email-item-checkbox"
+                                               :checked="selectedEmails.includes(email.id)"
+                                               @change="toggleEmailSelection(email.id, $event.target.checked)"
+                                               @click.stop>
+                                        <div class="email-field-label email-sender-label">FROM</div>
+                                        <div class="email-field-value email-sender-value" :title="parseSender(email.from || 'Unknown')">
+                                            {{ parseSender(email.from || 'Unknown') }}
+                                        </div>
+                                        <div class="email-field-label email-subject-label">SUBJECT</div>
+                                        <div class="email-field-value email-subject-value" :title="email.subject || '(No subject)'">
+                                            {{ email.subject || '(No subject)' }}
+                                        </div>
+                                        <div class="email-field-label email-time-label">TIME</div>
+                                        <div class="email-field-value email-time-value">{{ formatDate(email.date || email.internalDate) }}</div>
+                                        <div class="email-field-label email-to-label">TO</div>
+                                        <div class="email-field-value email-to-value" :title="email.to || ''">
+                                            {{ email.to || '' }}
+                                        </div>
+                                        <div class="email-snippet">{{ email.snippet || '' }}</div>
+                                        <div style="grid-column: 1 / -1; grid-row: 5; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                            <span v-for="labelType in labelTypes" 
+                                                  :key="labelType.name"
+                                                  :class="['label-badge', 
+                                                           { 
+                                                               'add-button': !hasLabel(email.label_names || [], labelType.name),
+                                                               'loading': loadingLabels[`${email.id}-${labelType.name}`]
+                                                           }]"
+                                                  @click.stop="toggleLabel(email, labelType.name, $event)"
+                                                  :title="`Click to ${hasLabel(email.label_names || [], labelType.name) ? 'remove' : 'add'} ${labelType.name} label`">
+                                                <template v-if="hasLabel(email.label_names || [], labelType.name)">
+                                                    {{ labelType.name }}
+                                                    <span class="delete-icon" 
+                                                          @click.stop="removeLabelFromList(email.id, email.account_id, labelType.name, $event)"
+                                                          :title="`Remove ${labelType.name} label`">×</span>
+                                                </template>
+                                                <template v-else>
+                                                    + {{ labelType.name }}{{ getScoreText(email, labelType.name) }}
+                                                </template>
+                                                <span v-if="loadingLabels[`${email.id}-${labelType.name}`]" class="loading-spinner"></span>
+                                            </span>
+                                            <span v-if="email.priority_score !== undefined" 
+                                                  :class="['priority-score-badge', getPriorityClass(email.priority_score)]"
+                                                  :title="`Priority score: ${email.priority_score}`">
+                                                ⚡ {{ email.priority_score }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- P4 Card -->
+                            <div :class="['priority-card', { collapsed: isPriorityCardCollapsed('p4') }]">
+                                <div class="priority-card-header p4" @click="togglePriorityCard('p4')">
+                                    <div class="priority-card-header-left">
+                                        <span class="priority-card-title">⚪ P4 - Low</span>
+                                        <span class="priority-card-chevron">▼</span>
+                                    </div>
+                                    <span class="priority-card-count">{{ priorityGroups.p4.length }} emails</span>
+                                </div>
+                                <div class="priority-card-emails">
+                                    <div v-if="priorityGroups.p4.length === 0" class="priority-card-empty">
+                                        No P4 emails
+                                    </div>
+                                    <div v-for="email in priorityGroups.p4" 
+                                         :key="email.id"
+                                         class="email-item has-checkbox"
+                                         @click="openEmailModal(email.id, email.account_id)">
+                                        <input type="checkbox" 
+                                               class="email-item-checkbox"
+                                               :checked="selectedEmails.includes(email.id)"
+                                               @change="toggleEmailSelection(email.id, $event.target.checked)"
+                                               @click.stop>
+                                        <div class="email-field-label email-sender-label">FROM</div>
+                                        <div class="email-field-value email-sender-value" :title="parseSender(email.from || 'Unknown')">
+                                            {{ parseSender(email.from || 'Unknown') }}
+                                        </div>
+                                        <div class="email-field-label email-subject-label">SUBJECT</div>
+                                        <div class="email-field-value email-subject-value" :title="email.subject || '(No subject)'">
+                                            {{ email.subject || '(No subject)' }}
+                                        </div>
+                                        <div class="email-field-label email-time-label">TIME</div>
+                                        <div class="email-field-value email-time-value">{{ formatDate(email.date || email.internalDate) }}</div>
+                                        <div class="email-field-label email-to-label">TO</div>
+                                        <div class="email-field-value email-to-value" :title="email.to || ''">
+                                            {{ email.to || '' }}
+                                        </div>
+                                        <div class="email-snippet">{{ email.snippet || '' }}</div>
+                                        <div style="grid-column: 1 / -1; grid-row: 5; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                            <span v-for="labelType in labelTypes" 
+                                                  :key="labelType.name"
+                                                  :class="['label-badge', 
+                                                           { 
+                                                               'add-button': !hasLabel(email.label_names || [], labelType.name),
+                                                               'loading': loadingLabels[`${email.id}-${labelType.name}`]
+                                                           }]"
+                                                  @click.stop="toggleLabel(email, labelType.name, $event)"
+                                                  :title="`Click to ${hasLabel(email.label_names || [], labelType.name) ? 'remove' : 'add'} ${labelType.name} label`">
+                                                <template v-if="hasLabel(email.label_names || [], labelType.name)">
+                                                    {{ labelType.name }}
+                                                    <span class="delete-icon" 
+                                                          @click.stop="removeLabelFromList(email.id, email.account_id, labelType.name, $event)"
+                                                          :title="`Remove ${labelType.name} label`">×</span>
+                                                </template>
+                                                <template v-else>
+                                                    + {{ labelType.name }}{{ getScoreText(email, labelType.name) }}
+                                                </template>
+                                                <span v-if="loadingLabels[`${email.id}-${labelType.name}`]" class="loading-spinner"></span>
+                                            </span>
+                                            <span v-if="email.priority_score !== undefined" 
+                                                  :class="['priority-score-badge', getPriorityClass(email.priority_score)]"
+                                                  :title="`Priority score: ${email.priority_score}`">
+                                                ⚡ {{ email.priority_score }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <!-- Regular Email list -->
                     <template v-else>
                         <div v-for="email in filteredEmails" 
                              :key="email.id"
@@ -1724,6 +2214,12 @@
                                         + {{ labelType.name }}{{ getScoreText(email, labelType.name) }}
                                     </template>
                                     <span v-if="loadingLabels[`${email.id}-${labelType.name}`]" class="loading-spinner"></span>
+                                </span>
+                                <!-- Priority score badge for noti emails -->
+                                <span v-if="email.priority_score !== undefined" 
+                                      :class="['priority-score-badge', getPriorityClass(email.priority_score)]"
+                                      :title="`Priority score: ${email.priority_score}`">
+                                    ⚡ {{ email.priority_score }}
                                 </span>
                             </div>
                         </div>
@@ -1873,7 +2369,8 @@
                     ollamaAvailable: false,
                     summarizing: false,
                     summary: '',
-                    summaryError: null
+                    summaryError: null,
+                    collapsedPriorityCards: new Set()
                 };
             },
             computed: {
@@ -2012,6 +2509,49 @@
                 mlLabelTypes() {
                     // Only labels where include_in_ml is true (core ML labels)
                     return this.labelTypes.filter(lt => lt.include_in_ml !== false);
+                },
+                priorityGroups() {
+                    // Group filtered emails by priority level (for noti filter view)
+                    // Order: p1, p2, unranked, p3, p4
+                    const groups = {
+                        p1: [],
+                        p2: [],
+                        unranked: [],
+                        p3: [],
+                        p4: []
+                    };
+                    
+                    for (const email of this.filteredEmails) {
+                        const labelNames = (email.label_names || []).map(n => n.toLowerCase());
+                        
+                        // Check for manual priority labels first
+                        if (labelNames.includes('p1')) {
+                            groups.p1.push(email);
+                        } else if (labelNames.includes('p2')) {
+                            groups.p2.push(email);
+                        } else if (labelNames.includes('p3')) {
+                            groups.p3.push(email);
+                        } else if (labelNames.includes('p4')) {
+                            groups.p4.push(email);
+                        } else if (email.priority_score !== undefined) {
+                            // Use predicted score (rounded to nearest priority)
+                            const rounded = Math.round(email.priority_score);
+                            if (rounded >= 4) {
+                                groups.p1.push(email);
+                            } else if (rounded === 3) {
+                                groups.p2.push(email);
+                            } else if (rounded === 2) {
+                                groups.p3.push(email);
+                            } else {
+                                groups.p4.push(email);
+                            }
+                        } else {
+                            // No priority info - unranked
+                            groups.unranked.push(email);
+                        }
+                    }
+                    
+                    return groups;
                 },
                 categoryCounts() {
                     // Count emails by category - each email goes to its best category
@@ -2856,6 +3396,36 @@
                     if (!labelTypeName) return '';
                     const score = email.label_scores?.[labelTypeName.toLowerCase()];
                     return score !== undefined ? ` (${score}%)` : '';
+                },
+                // Get priority class (p1, p2, p3, p4) based on score
+                getPriorityClass(score) {
+                    if (score === undefined || score === null) return '';
+                    const rounded = Math.round(score);
+                    if (rounded >= 4) return 'p1';
+                    if (rounded === 3) return 'p2';
+                    if (rounded === 2) return 'p3';
+                    return 'p4';
+                },
+                // Get manual priority label if present (p1, p2, p3, p4)
+                getManualPriorityLabel(email) {
+                    const labelNames = (email.label_names || []).map(n => n.toLowerCase());
+                    for (const p of ['p1', 'p2', 'p3', 'p4']) {
+                        if (labelNames.includes(p)) return p.toUpperCase();
+                    }
+                    return null;
+                },
+                // Toggle priority card collapsed state
+                togglePriorityCard(cardId) {
+                    if (this.collapsedPriorityCards.has(cardId)) {
+                        this.collapsedPriorityCards.delete(cardId);
+                    } else {
+                        this.collapsedPriorityCards.add(cardId);
+                    }
+                    // Force reactivity
+                    this.collapsedPriorityCards = new Set(this.collapsedPriorityCards);
+                },
+                isPriorityCardCollapsed(cardId) {
+                    return this.collapsedPriorityCards.has(cardId);
                 },
                 // Get effective score for a label on an email
                 // Returns: 100 if manually labeled with this label, 0 if manually labeled with different ML label, model score otherwise, or -1 if no score

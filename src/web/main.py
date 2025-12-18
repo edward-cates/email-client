@@ -52,6 +52,51 @@ def _get_label_scores(email: dict) -> dict[str, int] | None:
         # If model is not available or there's an error, return None
         return None
 
+
+# Priority labels that exclude prediction
+PRIORITY_LABELS = {"p1", "p2", "p3", "p4"}
+
+
+def _get_priority_score(email: dict) -> float | None:
+    """Get priority score for an email using the prioritization model.
+    
+    Only predicts for emails where:
+    1. Effective category is "noti" (manual label OR classification prediction)
+    2. Email does NOT have a manual p1-p4 label
+    
+    Returns:
+        Priority score (higher = more important), or None if not applicable
+    """
+    label_names = set(name.lower() for name in email.get("label_names", []))
+    
+    # Skip if email already has a manual priority label
+    if label_names & PRIORITY_LABELS:
+        return None
+    
+    # Check if effective category is "noti"
+    # First check manual label
+    if "noti" in label_names:
+        is_noti = True
+    else:
+        # Check if classification model predicts "noti" as top category
+        label_scores = email.get("label_scores") or _get_label_scores(email)
+        if not label_scores:
+            return None
+        
+        # Find the category with highest score
+        top_category = max(label_scores.items(), key=lambda x: x[1])[0] if label_scores else None
+        is_noti = top_category == "noti"
+    
+    if not is_noti:
+        return None
+    
+    # Get priority prediction
+    try:
+        from prioritization.inference import predict_priority_score  # noqa: E402
+        return predict_priority_score(email)
+    except Exception:
+        return None
+
 app = FastAPI()
 
 
@@ -306,6 +351,10 @@ async def get_merged_emails(
                     scores = _get_label_scores(email)
                     if scores:
                         email['label_scores'] = scores
+                    # Add priority score for noti emails without manual priority labels
+                    priority_score = _get_priority_score(email)
+                    if priority_score is not None:
+                        email['priority_score'] = round(priority_score, 1)
                 all_emails.extend(emails)
                 if next_token:
                     next_tokens[account_id] = next_token
@@ -440,6 +489,10 @@ async def get_merged_emails_stream(
                     scores = _get_label_scores(email)
                     if scores:
                         email['label_scores'] = scores
+                    # Add priority score for noti emails without manual priority labels
+                    priority_score = _get_priority_score(email)
+                    if priority_score is not None:
+                        email['priority_score'] = round(priority_score, 1)
                     all_emails.append(email)
                     yield f"data: {json.dumps({'type': 'email', 'email': email})}\n\n"
 
@@ -587,6 +640,10 @@ async def get_emails_stream(
             scores = _get_label_scores(email)
             if scores:
                 email['label_scores'] = scores
+            # Add priority score for noti emails without manual priority labels
+            priority_score = _get_priority_score(email)
+            if priority_score is not None:
+                email['priority_score'] = round(priority_score, 1)
             yield f"data: {json.dumps({'type': 'email', 'email': email})}\n\n"
 
         # Send completion
@@ -616,6 +673,10 @@ async def get_email_details(
         scores = _get_label_scores(parsed)
         if scores:
             parsed['label_scores'] = scores
+        # Add priority score for noti emails without manual priority labels
+        priority_score = _get_priority_score(parsed)
+        if priority_score is not None:
+            parsed['priority_score'] = round(priority_score, 1)
         return parsed
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching email: {str(e)}") from e
