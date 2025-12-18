@@ -215,3 +215,5 @@ src/gmail/tokens/*
 *.pt
 output/
 src/classification/model/
+output_prioritization
+src/prioritization/model/
