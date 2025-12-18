@@ -2089,7 +2089,7 @@
                             </div>
 
                             <!-- Unranked Card -->
-                            <div :class="['priority-card', { collapsed: isPriorityCardCollapsed('unranked') }]">
+                            <div v-if="priorityGroups.unranked.length > 0" :class="['priority-card', { collapsed: isPriorityCardCollapsed('unranked') }]">
                                 <div class="priority-card-header unranked" @click="togglePriorityCard('unranked')">
                                     <div class="priority-card-header-left">
                                         <span class="priority-card-title">❓ Unranked</span>
@@ -2098,9 +2098,6 @@
                                     <span class="priority-card-count">{{ priorityGroups.unranked.length }} emails</span>
                                 </div>
                                 <div class="priority-card-emails">
-                                    <div v-if="priorityGroups.unranked.length === 0" class="priority-card-empty">
-                                        No unranked emails
-                                    </div>
                                     <div v-for="email in priorityGroups.unranked" 
                                          :key="email.id"
                                          class="email-item has-checkbox"
