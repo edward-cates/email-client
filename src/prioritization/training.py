@@ -93,6 +93,8 @@ def train_model(
         learning_rate: Learning rate for training
         patience: Number of epochs to wait for improvement before stopping
     """
+    from collections import Counter
+    
     # Tokenize datasets
     train_dataset = tokenize_dataset(train_dataset, tokenizer)
     eval_dataset = tokenize_dataset(eval_dataset, tokenizer)
@@ -100,6 +102,63 @@ def train_model(
     # Set format for PyTorch - label is float for regression
     train_dataset.set_format("torch", columns=["input_ids", "attention_mask", "label"])
     eval_dataset.set_format("torch", columns=["input_ids", "attention_mask", "label"])
+    
+    # Calculate inverse frequency weights for each priority level
+    # This addresses class imbalance where rare priorities (like p1) get higher weights
+    train_labels = [float(train_dataset[i]["label"]) for i in range(len(train_dataset))]
+    # Round to get discrete priority levels (4=p1, 3=p2, 2=p3, 1=p4)
+    train_priorities = [round(label) for label in train_labels]
+    priority_counts = Counter(train_priorities)
+    total_samples = len(train_labels)
+    
+    # Weight = total / (num_classes * count_for_this_class)
+    # Higher weight for rare classes
+    num_priority_levels = 4
+    priority_weights = {}
+    for priority in [1, 2, 3, 4]:
+        count = priority_counts.get(priority, 0)
+        if count > 0:
+            priority_weights[priority] = total_samples / (num_priority_levels * count)
+        else:
+            priority_weights[priority] = 1.0
+    
+    # Log the weights
+    console.print("\n[dim]Sample weights (inverse frequency):[/dim]")
+    for priority, label in [(4, "p1"), (3, "p2"), (2, "p3"), (1, "p4")]:
+        count = priority_counts.get(priority, 0)
+        weight = priority_weights[priority]
+        console.print(f"[dim]  {label}: count={count}, weight={weight:.2f}[/dim]")
+    console.print()
+    
+    # Create sample weights tensor (one weight per training sample)
+    sample_weights = torch.tensor([priority_weights[round(label)] for label in train_labels], dtype=torch.float32)
+    
+    # Custom Trainer with weighted MSE loss
+    class WeightedMSETrainer(Trainer):
+        def __init__(self, sample_weights, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._sample_weights = sample_weights
+            self._current_indices = None
+        
+        def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+            labels = inputs.pop("labels")
+            outputs = model(**inputs)
+            logits = outputs.logits.squeeze(-1)
+            
+            # Standard MSE (HF's default for regression)
+            # We apply weighting based on the label values (priority levels)
+            # Since we can't track exact indices in batches, weight by label value
+            weights = torch.tensor(
+                [priority_weights[round(label.item())] for label in labels],
+                device=logits.device,
+                dtype=logits.dtype
+            )
+            
+            # Weighted MSE: mean of (weight * (pred - label)^2)
+            squared_errors = (logits - labels) ** 2
+            weighted_loss = (weights * squared_errors).mean()
+            
+            return (weighted_loss, outputs) if return_outputs else weighted_loss
     
     # Training arguments
     training_args = TrainingArguments(
@@ -159,7 +218,8 @@ def train_model(
         early_stopping_threshold=0.0,
     )
     
-    trainer = Trainer(
+    trainer = WeightedMSETrainer(
+        sample_weights=sample_weights,
         model=model,
         args=training_args,
         train_dataset=train_dataset,
