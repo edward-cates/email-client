@@ -16,12 +16,21 @@ LABELS_YAML = BASE_DIR / "src" / "gmail" / "labels.yaml"
 _model_cache: Optional[tuple] = None
 
 
+def _get_device():
+    """Get the best available device (MPS for Apple Silicon, otherwise CPU)"""
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
 def _load_model_if_needed():
     """Load model and tokenizer, caching them for subsequent calls"""
     global _model_cache
     
     if _model_cache is not None:
         return _model_cache
+    
+    device = _get_device()
     
     # Check if trained model exists (either new format or old format for backward compatibility)
     if not MODEL_DIR.exists() or not (MODEL_DIR / "config.json").exists():
@@ -36,16 +45,15 @@ def _load_model_if_needed():
             "distilbert-base-uncased",
             num_labels=num_labels,
         )
-        model.load_state_dict(torch.load(old_weights_path, map_location='cpu'))
+        model.load_state_dict(torch.load(old_weights_path, map_location=device))
     else:
         # New format - load using transformers' from_pretrained
         model, tokenizer = load_model_and_tokenizer()
     
     model.eval()
-    # Ensure model is on CPU for inference
-    model = model.cpu()
+    model = model.to(device)
     
-    _model_cache = (model, tokenizer)
+    _model_cache = (model, tokenizer, device)
     return _model_cache
 
 
@@ -81,7 +89,7 @@ def predict_email_labels(email: dict) -> Optional[dict[str, int]]:
     if model_data is None:
         return None
     
-    model, tokenizer = model_data
+    model, tokenizer, device = model_data
     
     # Format input text using shared function
     text = format_email_for_model(email)
@@ -94,6 +102,9 @@ def predict_email_labels(email: dict) -> Optional[dict[str, int]]:
         max_length=512,
         return_tensors="pt"
     )
+    
+    # Move inputs to device
+    inputs = {k: v.to(device) for k, v in inputs.items()}
     
     # Run inference
     with torch.no_grad():

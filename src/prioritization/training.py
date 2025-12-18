@@ -161,6 +161,7 @@ def train_model(
             return (weighted_loss, outputs) if return_outputs else weighted_loss
     
     # Training arguments
+    use_mps = torch.backends.mps.is_available()
     training_args = TrainingArguments(
         output_dir=str(output_dir),
         num_train_epochs=num_epochs,
@@ -178,6 +179,7 @@ def train_model(
         warmup_steps=10,
         save_total_limit=2,
         fp16=False,
+        use_mps_device=use_mps,  # Use Apple Silicon GPU if available
     )
     
     def compute_metrics(eval_pred):

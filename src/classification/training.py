@@ -141,6 +141,7 @@ def train_model(
             return (loss, outputs) if return_outputs else loss
     
     # Training arguments
+    use_mps = torch.backends.mps.is_available()
     training_args = TrainingArguments(
         output_dir=str(output_dir),
         num_train_epochs=num_epochs,
@@ -158,6 +159,7 @@ def train_model(
         warmup_steps=10,  # Add warmup to help with small datasets
         save_total_limit=2,  # Limit checkpoints
         fp16=False,  # Ensure full precision for small datasets
+        use_mps_device=use_mps,  # Use Apple Silicon GPU if available
     )
     
     # Metrics function

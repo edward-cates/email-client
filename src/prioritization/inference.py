@@ -11,6 +11,13 @@ from src.classification.dataset import format_email_for_model
 _model_cache: Optional[tuple] = None
 
 
+def _get_device():
+    """Get the best available device (MPS for Apple Silicon, otherwise CPU)"""
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
 def _load_model_if_needed():
     """Load model and tokenizer, caching them for subsequent calls"""
     global _model_cache
@@ -21,11 +28,12 @@ def _load_model_if_needed():
     if not MODEL_DIR.exists() or not (MODEL_DIR / "config.json").exists():
         return None
     
+    device = _get_device()
     model, tokenizer = load_model_and_tokenizer()
     model.eval()
-    model = model.cpu()
+    model = model.to(device)
     
-    _model_cache = (model, tokenizer)
+    _model_cache = (model, tokenizer, device)
     return _model_cache
 
 
@@ -52,7 +60,7 @@ def predict_priority_score(email: dict) -> Optional[float]:
     if model_data is None:
         return None
     
-    model, tokenizer = model_data
+    model, tokenizer, device = model_data
     
     text = format_email_for_model(email)
     
@@ -63,6 +71,9 @@ def predict_priority_score(email: dict) -> Optional[float]:
         max_length=512,
         return_tensors="pt"
     )
+    
+    # Move inputs to device
+    inputs = {k: v.to(device) for k, v in inputs.items()}
     
     with torch.no_grad():
         outputs = model(**inputs)
