@@ -838,20 +838,36 @@ async def summarize_emails(request: SummarizeRequest):
             
             # Prepare prompt for Ollama
             emails_content = "\n\n---\n\n".join(email_texts)
-            prompt = f"""Summarize the following emails into a concise markdown-formatted bullet list with emojis.
+            prompt = f"""Analyze and summarize the following emails into a visually engaging digest.
 
-Requirements:
-- Output ONLY the summary in markdown format (use - for bullets, ** for bold, etc.)
-- Each bullet point should represent a key topic or theme from the emails
-- Use appropriate emojis to make it visually appealing
-- Do NOT include any meta-commentary like "I've summarized" or "Here are X bullets"
-- Do NOT include any introductory text - start directly with the bullet list
-- Output should be valid markdown that can be rendered as HTML
+Output Requirements:
+- Use rich HTML formatting with the following structure:
+  * Group related emails by theme/category
+  * Use <h4> tags with emojis for section headers (e.g. <h4>🔔 Notifications</h4>)
+  * Use <ul> and <li> tags for items within each section
+  * Use <strong> to highlight key names, amounts, or actions
+  * Use <em> for dates, times, or secondary info
+  * Add relevant emojis inline to make it scannable
+- Keep each bullet point concise (1-2 sentences max)
+- Prioritize actionable items and important updates
+- Do NOT include any meta-commentary or introduction
+- Start directly with the first section header
+- Output valid HTML that renders cleanly
+
+Example output format:
+<h4>💰 Financial</h4>
+<ul>
+<li>Payment of <strong>$150.00</strong> received from <strong>John Doe</strong></li>
+</ul>
+<h4>📬 Updates</h4>
+<ul>
+<li>Your order <em>#12345</em> has shipped and arrives <strong>tomorrow</strong></li>
+</ul>
 
 Emails:
 {emails_content}
 
-Summary (markdown format, bullets only, no meta-commentary):"""
+Summary (HTML format, no meta-commentary, start with first section):"""
             
             prompt_length = len(prompt)
             print(f"[Ollama Summarize] Prompt length: {prompt_length} characters")

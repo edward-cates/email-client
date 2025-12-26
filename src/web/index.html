@@ -632,7 +632,23 @@
             margin-bottom: 0;
         }
 
-        .summarize-text::before {
+        .summarize-text :deep(h4) {
+            color: var(--accent-bright);
+            font-size: 14px;
+            font-weight: 600;
+            margin: 16px 0 8px 0;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .summarize-text :deep(h4:first-child) {
+            margin-top: 0;
+        }
+
+        .summarize-text.is-loading::before {
             content: '';
             position: absolute;
             top: 0;
@@ -680,6 +696,24 @@
             background: linear-gradient(135deg, #66bb6a 0%, #81c784 100%);
             box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5);
             transform: translateY(-2px);
+        }
+
+        .summarize-dismiss-btn {
+            padding: 10px 18px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .summarize-dismiss-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            border-color: var(--text-tertiary);
         }
 
         .summarize-loading {
@@ -1888,11 +1922,15 @@
                             <span>⚠️</span>
                             <span>{{ summaryError }}</span>
                         </div>
-                        <div v-if="summary" class="summarize-text" v-html="renderMarkdown(summary)"></div>
+                        <div v-if="summary" :class="['summarize-text', { 'is-loading': summarizing }]" v-html="summary"></div>
                         <div v-if="summary && !summarizing" class="summarize-actions">
                             <div class="summarize-count">
                                 Summary of {{ filteredEmails.length }} email{{ filteredEmails.length !== 1 ? 's' : '' }}
                             </div>
+                            <button class="summarize-dismiss-btn" 
+                                    @click="dismissSummary">
+                                ✕ Dismiss
+                            </button>
                             <button class="summarize-archive-btn" 
                                     @click="archiveAllFilteredEmails">
                                 📦 Archive All
@@ -2881,6 +2919,12 @@
                                         if (data.type === 'chunk') {
                                             this.summary += data.content;
                                         } else if (data.type === 'complete') {
+                                            // Strip markdown code fences if present
+                                            this.summary = this.summary
+                                                .replace(/^```html\s*/i, '')
+                                                .replace(/^```\s*/m, '')
+                                                .replace(/\s*```$/m, '')
+                                                .trim();
                                             this.summarizing = false;
                                         } else if (data.type === 'error') {
                                             this.summaryError = data.message;
@@ -2897,6 +2941,10 @@
                         this.summaryError = error.message;
                         this.summarizing = false;
                     }
+                },
+                dismissSummary() {
+                    this.summary = '';
+                    this.summaryError = null;
                 },
                 async archiveAllFilteredEmails() {
                     if (this.filteredEmails.length === 0) {
@@ -3926,7 +3974,9 @@
                     }
                     
                     const loadingKey = `${messageId}-${labelName}`;
+                    const modalLoadingKey = `modal-${messageId}-${labelName}`;
                     this.loadingLabels[loadingKey] = true;
+                    this.loadingLabels[modalLoadingKey] = true;
                     
                     try {
                         const url = `/api/emails/${encodeURIComponent(messageId)}/labels?account_id=${encodeURIComponent(accountId)}`;
@@ -3954,6 +4004,7 @@
                         alert(`Error adding ${labelName} label: ` + error.message);
                     } finally {
                         this.loadingLabels[loadingKey] = false;
+                        this.loadingLabels[modalLoadingKey] = false;
                     }
                 },
                 async removeLabelFromList(messageId, accountId, labelName, event) {
@@ -3977,8 +4028,10 @@
                         return;
                     }
                     
-                    const loadingKey = messageId.startsWith('modal-') ? `modal-${messageId}-${labelName}` : `${messageId}-${labelName}`;
+                    const loadingKey = `${messageId}-${labelName}`;
+                    const modalLoadingKey = `modal-${messageId}-${labelName}`;
                     this.loadingLabels[loadingKey] = true;
+                    this.loadingLabels[modalLoadingKey] = true;
                     
                     try {
                         const url = `/api/emails/${encodeURIComponent(messageId)}/labels?account_id=${encodeURIComponent(accountId)}`;
@@ -4006,6 +4059,7 @@
                         alert(`Error removing ${labelName} label: ` + error.message);
                     } finally {
                         this.loadingLabels[loadingKey] = false;
+                        this.loadingLabels[modalLoadingKey] = false;
                     }
                 },
                 async removeLabel(messageId, accountId, labelName, event) {
